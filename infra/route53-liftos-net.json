@@ -1,0 +1,37 @@
+{
+  "Comment": "LiftOS — Route 53 records for Amplify Hosting (liftos.net)",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "liftos.net",
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "DNSName": "dkq2pemozpnpj.cloudfront.net",
+          "EvaluateTargetHealth": false
+        }
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "www.liftos.net",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "dkq2pemozpnpj.cloudfront.net" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "_323c4a263e608c52375bed60cf2fb2ac.liftos.net",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          { "Value": "_2cb1903de2bbfd436502b9ad2265896b.jkddzztszm.acm-validations.aws." }
+        ]
+      }
+    }
+  ]
+}

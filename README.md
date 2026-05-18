@@ -56,7 +56,7 @@ sam deploy --guided
 After deploy, copy the **API URL** from the output (looks like):
 `https://abc123def.execute-api.ap-southeast-2.amazonaws.com/prod`
 
-## Frontend Deploy (liftos.app)
+## Frontend Deploy (liftos.net)
 
 The canonical app is **`index.html`** at the repo root, with **`config.json`** (API URL, auto-loaded on startup).
 
@@ -74,14 +74,15 @@ The frontend auto-deploys on every push to **`main`** via [AWS Amplify](https://
 
 **Workflow:** edit `index.html` or `config.json` → `git push origin main` → Amplify builds and deploys (~1 min).
 
-**Custom domains** (configure at your registrar):
+**Custom domain (Route 53 hosted zone `liftos.net`):**
 
-| Domain | Record | Value |
-|--------|--------|--------|
-| `liftos.app` (apex) | CNAME or ALIAS | `drqwm1ecp3jfm.cloudfront.net` |
-| `www.liftos.app` | CNAME | `drqwm1ecp3jfm.cloudfront.net` |
+| Host | Type | Value |
+|------|------|--------|
+| `liftos.net` (apex) | A (ALIAS) | `dkq2pemozpnpj.cloudfront.net` |
+| `www.liftos.net` | CNAME | `dkq2pemozpnpj.cloudfront.net` |
+| `_323c4a26…liftos.net` | CNAME | ACM cert validation (Amplify-managed) |
 
-`liftos.net` / `www.liftos.net` also point to this app (branch `main`). Check Amplify → Domain management for live DNS values if these change.
+Live site: **https://www.liftos.net** (apex redirects to www via Amplify).
 
 **Backend:** run `cd backend && ./deploy.sh` locally after API changes; commit the updated `config.json` and push so the frontend picks up the new URL.
 
@@ -89,7 +90,7 @@ The frontend auto-deploys on every push to **`main`** via [AWS Amplify](https://
 1. Go to https://console.aws.amazon.com/amplify
 2. "Host a web app" → "Deploy without Git"
 3. Drag and drop **`index.html`** and **`config.json`**
-4. Add custom domain **liftos.app** in Domain management
+4. Custom domain **liftos.net** is configured in Amplify Domain management
 
 ### Option 2: S3 Static Website
 ```bash

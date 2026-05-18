@@ -42,7 +42,7 @@ CONFIG_FILE="$(cd "$(dirname "$0")/.." && pwd)/config.json"
 cat > "$CONFIG_FILE" <<EOF
 {
   "apiUrl": "$API_URL",
-  "appUrl": "https://liftos.app"
+  "appUrl": "https://www.liftos.net"
 }
 EOF
 
