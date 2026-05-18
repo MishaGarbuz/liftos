@@ -130,6 +130,13 @@ a{color:inherit;text-decoration:none}
 .day-tab{padding:8px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;transition:all var(--transition)}
 .day-tab:hover{color:var(--text)}
 .day-tab.active{background:var(--accent);color:#fff}
+.day-tab.completed:not(.active){color:var(--success)}
+.day-tab.completed:not(.active)::after{content:' ✓';font-size:11px;opacity:0.9}
+.log-completed-banner{background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.04));border:1px solid rgba(34,197,94,0.35);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:16px}
+.log-completed-banner h3{font-size:15px;font-weight:700;color:var(--success);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.log-completed-banner p{font-size:13px;color:var(--text-muted);line-height:1.5}
+.log-completed-banner .log-completed-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.log-completed-hint{text-align:center;padding:32px 16px;color:var(--text-faint);font-size:13px;border:1px dashed var(--border);border-radius:var(--radius-lg)}
 
 /* ── WARMUP SECTION ───────────────────────────────────────────── */
 .warmup-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:16px;overflow:hidden}
@@ -330,6 +337,7 @@ a{color:inherit;text-decoration:none}
 
 /* ── AUTH GATE ────────────────────────────────────────────────── */
 .auth-gate{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+.hidden{display:none !important}
 .auth-gate.hidden{display:none}
 .auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:28px 24px}
 .auth-card h1{font-size:22px;font-weight:700;margin-bottom:6px}
@@ -379,6 +387,16 @@ a{color:inherit;text-decoration:none}
       <div class="auth-field">
         <label for="loginPassword">Password</label>
         <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </div>
+      <div id="newPasswordFields" class="hidden">
+        <div class="auth-field">
+          <label for="loginNewPassword">New password</label>
+          <input type="password" id="loginNewPassword" autocomplete="new-password" minlength="8">
+        </div>
+        <div class="auth-field">
+          <label for="loginNewPasswordConfirm">Confirm new password</label>
+          <input type="password" id="loginNewPasswordConfirm" autocomplete="new-password" minlength="8">
+        </div>
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px" id="loginBtn">Sign in</button>
       <div class="auth-error" id="loginError"></div>
@@ -541,6 +559,8 @@ a{color:inherit;text-decoration:none}
         <div class="day-tabs" id="dayTabs"></div>
       </div>
 
+      <div id="logCompletedBanner" class="log-completed-banner hidden"></div>
+
       <div id="deloadBanner" style="display:none" class="api-banner" style="background:rgba(245,158,11,0.08)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         🟡 DELOAD WEEK — Reduce all weights by 40%. Focus on form, not maxing out.
@@ -553,7 +573,7 @@ a{color:inherit;text-decoration:none}
 
       <div id="workoutContent"></div>
 
-      <div style="display:flex;gap:10px;margin-top:20px">
+      <div id="logSessionActions" style="display:flex;gap:10px;margin-top:20px">
         <button class="btn btn-primary" onclick="completeSession()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           Complete Session
@@ -1039,6 +1059,51 @@ function closeSidebar(){ document.getElementById('sidebar').classList.remove('op
 /* ═══════════════════════════════════════════════════════════════
    LOG WORKOUT PAGE
 ═══════════════════════════════════════════════════════════════ */
+function getCompletedSessionForSlot(week, day) {
+  return state.sessions.find(s => s.week === week && s.day === day && s.completed);
+}
+
+function viewHistoricWorkout(week, day) {
+  const session = getCompletedSessionForSlot(week, day);
+  if (!session) return;
+  const idx = state.sessions.indexOf(session);
+  if (idx < 0) return;
+  const nav = document.querySelector('.nav-item[data-page="history"]');
+  showPage('history', nav);
+  requestAnimationFrame(() => openSessionModal(idx, false));
+}
+
+function renderLogCompletedBanner(session) {
+  const day = PROGRAM[session.day];
+  const doneSets = session.sets.filter(x => x.weight > 0 || x.reps > 0);
+  const bestE1rm = doneSets.length ? Math.max(...doneSets.map(x => x.e1rm || 0)) : 0;
+  const label = day?.label || session.day;
+  const banner = document.getElementById('logCompletedBanner');
+  if (!banner) return;
+  banner.classList.remove('hidden');
+  banner.innerHTML = `
+    <h3>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Workout completed
+    </h3>
+    <p><strong>${label}</strong> · Week ${session.week} · ${session.date}<br>
+    ${doneSets.length} sets logged${bestE1rm > 0 ? ` · Best E1RM <strong>${bestE1rm}kg</strong>` : ''}.</p>
+    <div class="log-completed-actions">
+      <button type="button" class="btn btn-primary" onclick="viewHistoricWorkout(${session.week},'${session.day}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        View workout in history
+      </button>
+    </div>`;
+}
+
+function hideLogCompletedBanner() {
+  const banner = document.getElementById('logCompletedBanner');
+  if (banner) {
+    banner.classList.add('hidden');
+    banner.innerHTML = '';
+  }
+}
+
 function renderLogPage() {
   activeApiSessionId = null;
   const inProgress = state.sessions.find(s => s.week === state.currentWeek && s.day === state.currentDay && !s.completed);
@@ -1059,16 +1124,31 @@ function renderLogPage() {
   dt.innerHTML = '';
   DAYS.forEach(d=>{
     const btn = document.createElement('button');
-    btn.className = 'day-tab'+(d===state.currentDay?' active':'');
+    const done = getCompletedSessionForSlot(state.currentWeek, d);
+    btn.className = 'day-tab'+(d===state.currentDay?' active':'')+(done?' completed':'');
     btn.textContent = {Mon:'Mon',Tue:'Tue',Thu:'Thu',Fri:'Fri'}[d];
+    btn.title = done ? 'Completed — view in history' : '';
     btn.onclick = ()=>{ state.currentDay=d; renderLogPage(); };
     dt.appendChild(btn);
   });
-  // Deload banner
-  document.getElementById('deloadBanner').style.display = [6,12].includes(state.currentWeek)?'flex':'none';
-  // Render workout
+
+  const completed = getCompletedSessionForSlot(state.currentWeek, state.currentDay);
+  const actions = document.getElementById('logSessionActions');
   const wc = document.getElementById('workoutContent');
   wc.innerHTML = '';
+
+  if (completed) {
+    renderLogCompletedBanner(completed);
+    document.getElementById('deloadBanner').style.display = 'none';
+    if (actions) actions.style.display = 'none';
+    wc.innerHTML = '<p class="log-completed-hint">This session is finished. Use the button above to review your logged sets, or switch to another day to log a new workout.</p>';
+    return;
+  }
+
+  hideLogCompletedBanner();
+  if (actions) actions.style.display = 'flex';
+  document.getElementById('deloadBanner').style.display = [6,12].includes(state.currentWeek)?'flex':'none';
+
   const day = PROGRAM[state.currentDay];
   // Warmup
   const wu = document.createElement('div');
@@ -1371,6 +1451,7 @@ async function deleteSession(idx) {
     renderHistory();
     renderDashboard();
     renderProgressPage();
+    renderLogPage();
     setSyncStatus(apiOnline ? 'connected' : 'offline', apiOnline ? 'Synced' : 'Offline');
   } catch (e) {
     alert('Could not delete: ' + e.message);
@@ -1986,27 +2067,78 @@ function getIdToken() {
   return t.idToken;
 }
 
-async function cognitoInitiateAuth(email, password) {
-  if (!cognitoConfig?.clientId || !cognitoConfig?.region) {
-    throw new Error('Auth not configured. Redeploy backend and refresh config.json.');
-  }
+let pendingAuthChallenge = null;
+
+async function cognitoIdpRequest(target, payload) {
   const res = await fetch(`https://cognito-idp.${cognitoConfig.region}.amazonaws.com/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-amz-json-1.1',
-      'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth',
+      'X-Amz-Target': target,
     },
-    body: JSON.stringify({
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+async function cognitoInitiateAuth(email, password) {
+  if (!cognitoConfig?.clientId || !cognitoConfig?.region) {
+    throw new Error('Auth not configured. Redeploy backend and refresh config.json.');
+  }
+  const data = await cognitoIdpRequest(
+    'AWSCognitoIdentityProviderService.InitiateAuth',
+    {
       AuthFlow: 'USER_PASSWORD_AUTH',
       ClientId: cognitoConfig.clientId,
       AuthParameters: { USERNAME: email.trim(), PASSWORD: password },
-    }),
-  });
-  const data = await res.json();
+    },
+  );
+  if (data.ChallengeName === 'NEW_PASSWORD_REQUIRED') {
+    pendingAuthChallenge = { email: email.trim(), session: data.Session };
+    return { challenge: 'NEW_PASSWORD_REQUIRED' };
+  }
   if (data.__type || !data.AuthenticationResult) {
     throw new Error(data.message || 'Sign in failed');
   }
+  pendingAuthChallenge = null;
+  return { tokens: data.AuthenticationResult };
+}
+
+async function cognitoCompleteNewPassword(newPassword) {
+  if (!pendingAuthChallenge?.session) {
+    throw new Error('Start sign-in again, then set your new password.');
+  }
+  const data = await cognitoIdpRequest(
+    'AWSCognitoIdentityProviderService.RespondToAuthChallenge',
+    {
+      ChallengeName: 'NEW_PASSWORD_REQUIRED',
+      ClientId: cognitoConfig.clientId,
+      Session: pendingAuthChallenge.session,
+      ChallengeResponses: {
+        USERNAME: pendingAuthChallenge.email,
+        NEW_PASSWORD: newPassword,
+      },
+    },
+  );
+  if (data.__type || !data.AuthenticationResult) {
+    throw new Error(data.message || 'Could not set new password');
+  }
+  pendingAuthChallenge = null;
   return data.AuthenticationResult;
+}
+
+function showNewPasswordChallenge() {
+  document.getElementById('newPasswordFields')?.classList.remove('hidden');
+  document.getElementById('loginBtn').textContent = 'Set password & sign in';
+  document.getElementById('loginError').textContent =
+    'First sign-in: choose a new password below (8+ characters).';
+}
+
+function hideNewPasswordChallenge() {
+  document.getElementById('newPasswordFields')?.classList.add('hidden');
+  document.getElementById('loginNewPassword').value = '';
+  document.getElementById('loginNewPasswordConfirm').value = '';
+  document.getElementById('loginBtn').textContent = 'Sign in';
 }
 
 async function cognitoRefreshToken() {
@@ -2051,8 +2183,10 @@ function hideAuthGate() {
 
 function signOut() {
   sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  pendingAuthChallenge = null;
   apiOnline = false;
   showAuthGate();
+  hideNewPasswordChallenge();
   document.getElementById('loginError').textContent = '';
 }
 
@@ -2259,19 +2393,37 @@ async function handleLogin(e) {
   const password = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
   const btn = document.getElementById('loginBtn');
-  errEl.textContent = '';
+  const inChallenge = !!pendingAuthChallenge;
+  errEl.textContent = inChallenge ? errEl.textContent : '';
   btn.disabled = true;
-  btn.textContent = 'Signing in…';
+  btn.textContent = inChallenge ? 'Setting password…' : 'Signing in…';
   try {
-    const tokens = await cognitoInitiateAuth(email, password);
-    saveAuthTokens(tokens);
+    if (inChallenge) {
+      const np = document.getElementById('loginNewPassword').value;
+      const npc = document.getElementById('loginNewPasswordConfirm').value;
+      if (np.length < 8) throw new Error('New password must be at least 8 characters.');
+      if (np !== npc) throw new Error('New passwords do not match.');
+      const tokens = await cognitoCompleteNewPassword(np);
+      saveAuthTokens(tokens);
+      hideNewPasswordChallenge();
+      hideAuthGate();
+      await bootApp();
+      return;
+    }
+    const result = await cognitoInitiateAuth(email, password);
+    if (result.challenge === 'NEW_PASSWORD_REQUIRED') {
+      showNewPasswordChallenge();
+      return;
+    }
+    saveAuthTokens(result.tokens);
     hideAuthGate();
     await bootApp();
   } catch (err) {
     errEl.textContent = err.message || 'Sign in failed';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Sign in';
+    if (!pendingAuthChallenge) btn.textContent = 'Sign in';
+    else btn.textContent = 'Set password & sign in';
   }
 }
 
