@@ -46,6 +46,7 @@
   --font: 'Inter', system-ui, sans-serif;
   --transition: 160ms cubic-bezier(0.16,1,0.3,1);
   --sidebar-w: 220px;
+  --bottom-nav-h: 56px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth;width:100%;max-width:100vw;overflow-x:hidden}
@@ -285,11 +286,14 @@ a{color:inherit;text-decoration:none}
 /* ── MOBILE / PWA ─────────────────────────────────────────────── */
 .mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:90}
 .menu-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-md);background:var(--surface-2);border:1px solid var(--border)}
-.bottom-nav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:120;background:rgba(17,24,39,0.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+.bottom-nav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:120;background:rgba(17,24,39,0.98);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));transform:translateZ(0);-webkit-transform:translateZ(0)}
+body.auth-locked .bottom-nav{display:none!important}
 .bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px;border-radius:var(--radius-md);color:var(--text-muted);font-size:10px;font-weight:600;min-height:52px;border:none;background:transparent}
 .bottom-nav-item svg{width:20px;height:20px}
 .bottom-nav-item.active{color:var(--accent);background:var(--accent-dim)}
 @media(max-width:768px){
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+  .app-shell{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
   .sidebar{
     transform:translateX(-100%);
     width:min(280px,88vw);
@@ -299,10 +303,19 @@ a{color:inherit;text-decoration:none}
   .sidebar.open{transform:translateX(0)}
   .sidebar-logo{padding-top:14px}
   .mobile-overlay.open{display:block}
-  .main{margin-left:0;width:100%}
+  .main{
+    margin-left:0;
+    width:100%;
+    flex:1;
+    min-height:0;
+    overflow-x:hidden;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-y:contain;
+    padding-bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom,0px) + 8px);
+  }
   .menu-btn{display:flex}
   .bottom-nav{display:flex}
-  .main{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
   .topbar{padding:0 12px;padding-top:env(safe-area-inset-top,0px);height:auto;min-height:52px;flex-wrap:wrap;gap:8px}
   .topbar-title{font-size:12px}
   .topbar-actions{gap:6px;flex-wrap:wrap}
@@ -421,7 +434,7 @@ a{color:inherit;text-decoration:none}
 
 </style>
 </head>
-<body>
+<body class="auth-locked">
 
 <!-- LOGIN (Cognito) -->
 <div id="authGate" class="auth-gate">
@@ -808,30 +821,30 @@ a{color:inherit;text-decoration:none}
   </div>
 </div>
 
-  <nav class="bottom-nav" id="bottomNav" aria-label="Main navigation">
-    <button type="button" class="bottom-nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Home
-    </button>
-    <button type="button" class="bottom-nav-item" data-page="log" onclick="showPage('log',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-      Log
-    </button>
-    <button type="button" class="bottom-nav-item" data-page="history" onclick="showPage('history',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      History
-    </button>
-    <button type="button" class="bottom-nav-item" data-page="progress" onclick="showPage('progress',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      Progress
-    </button>
-    <button type="button" class="bottom-nav-item" data-page="menu" onclick="toggleSidebar()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      More
-    </button>
-  </nav>
-
 </div><!-- /appShell -->
+
+<nav class="bottom-nav" id="bottomNav" aria-label="Main navigation">
+  <button type="button" class="bottom-nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Home
+  </button>
+  <button type="button" class="bottom-nav-item" data-page="log" onclick="showPage('log',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+    Log
+  </button>
+  <button type="button" class="bottom-nav-item" data-page="history" onclick="showPage('history',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    History
+  </button>
+  <button type="button" class="bottom-nav-item" data-page="progress" onclick="showPage('progress',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Progress
+  </button>
+  <button type="button" class="bottom-nav-item" data-page="menu" onclick="toggleSidebar()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    More
+  </button>
+</nav>
 
 <!-- SESSION COMPLETE SUMMARY -->
 <div id="completeSummary" class="complete-summary" aria-hidden="true">
@@ -1192,6 +1205,8 @@ function showPage(name, navEl) {
   if(name==='dashboard') renderDashboard();
   if(name==='schedule') renderSchedule();
   closeSidebar();
+  const mainEl = document.querySelector('main.main');
+  if (mainEl) mainEl.scrollTop = 0;
 }
 
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); document.getElementById('mobileOverlay').classList.toggle('open'); }
@@ -2303,11 +2318,13 @@ async function ensureIdToken() {
 function showAuthGate() {
   document.getElementById('authGate')?.classList.remove('hidden');
   document.getElementById('appShell')?.classList.add('app-locked');
+  document.body.classList.add('auth-locked');
 }
 
 function hideAuthGate() {
   document.getElementById('authGate')?.classList.add('hidden');
   document.getElementById('appShell')?.classList.remove('app-locked');
+  document.body.classList.remove('auth-locked');
 }
 
 function signOut() {
