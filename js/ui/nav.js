@@ -33,7 +33,10 @@ function showPage(name, navEl) {
   if(name==='schedule') renderSchedule();
   closeSidebar();
   const contentEl = document.querySelector('main.main .content');
-  if (contentEl) contentEl.scrollTop = 0;
+  if (contentEl) {
+    contentEl.classList.toggle('content--log', name === 'log');
+    contentEl.scrollTop = 0;
+  }
 }
 
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); document.getElementById('mobileOverlay').classList.toggle('open'); }

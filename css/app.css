@@ -363,10 +363,12 @@ body.auth-locked .bottom-nav{display:none!important}
   .history-table{font-size:12px}
   .timer-overlay{left:12px;right:12px;bottom:calc(var(--bottom-nav-total) + 12px);min-width:0}
   .complete-summary-footer{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+  .content.content--log,
   .content:has(#page-log.active){
     display:flex;
     flex-direction:column;
     overflow:hidden;
+    padding-bottom:0;
   }
   #page-log.active{
     display:flex;
@@ -374,6 +376,8 @@ body.auth-locked .bottom-nav{display:none!important}
     flex:1;
     min-height:0;
     width:100%;
+    padding-bottom:calc(var(--log-actions-h, 64px) + var(--bottom-nav-total) + var(--safe-bottom) + 8px);
+    box-sizing:border-box;
   }
   #page-log.active .log-page-scroll{
     flex:1;
@@ -384,17 +388,27 @@ body.auth-locked .bottom-nav{display:none!important}
     overscroll-behavior-y:contain;
   }
   #page-log.active .log-session-actions{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:calc(var(--bottom-nav-total) + var(--safe-bottom));
+    z-index:125;
     flex-shrink:0;
-    margin-top:0;
-    padding:12px 0 4px;
-    background:linear-gradient(to top,var(--bg) 70%,transparent);
+    margin:0;
+    padding:10px max(16px,env(safe-area-inset-left)) 10px max(16px,env(safe-area-inset-right));
+    background:var(--surface);
     border-top:1px solid var(--border);
+    box-shadow:0 -8px 32px rgba(0,0,0,0.45);
     gap:8px;
+    box-sizing:border-box;
   }
   #page-log.active .log-session-actions .btn-primary{
     flex:1;
     min-width:0;
     justify-content:center;
+  }
+  #page-log.active .log-session-actions .btn-ghost:not(#repeatLastBtn){
+    flex:0 0 auto;
   }
 }
 @media(display-mode:standalone) and (max-width:768px){

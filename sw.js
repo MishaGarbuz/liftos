@@ -1,4 +1,4 @@
-const CACHE = 'liftos-shell-v12';
+const CACHE = 'liftos-shell-v13';
 let restTimerTimeout = null;
 
 self.addEventListener('message', (e) => {

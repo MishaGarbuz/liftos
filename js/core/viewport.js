@@ -36,6 +36,10 @@ function syncMobileViewport() {
   if (nav && window.matchMedia('(max-width: 768px)').matches) {
     document.documentElement.style.setProperty('--bottom-nav-total', `${nav.offsetHeight}px`);
   }
+  const logActions = document.getElementById('logSessionActions');
+  if (logActions && !logActions.classList.contains('is-hidden')) {
+    document.documentElement.style.setProperty('--log-actions-h', `${logActions.offsetHeight}px`);
+  }
 }
 
 function bindMobileViewport() {

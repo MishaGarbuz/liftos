@@ -289,6 +289,9 @@ function renderLogPage() {
   if (inProgressSets?.sets?.length) {
     requestAnimationFrame(() => applyInProgressSets(inProgressSets));
   }
+  requestAnimationFrame(() => {
+    if (typeof syncMobileViewport === 'function') syncMobileViewport();
+  });
 }
 
 function buildExerciseCard(ex, bi, ei, inSuper) {
