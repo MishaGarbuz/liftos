@@ -528,6 +528,17 @@ html.ios-pwa .complete-summary-footer{padding-bottom:calc(16px + var(--safe-bott
 .plate-calc-ok{font-size:13px;color:var(--success);margin-bottom:8px}
 .plate-calc-warn{font-size:13px;color:var(--warning);margin-bottom:8px}
 .plate-calc-error{font-size:13px;color:#f87171}
+.plate-calc-hint{font-size:13px;color:var(--text-muted);text-align:center;padding:12px 0}
 .plate-calc-formula{font-size:12px;color:var(--text-muted);text-align:center}
-@media(max-width:768px){.plate-calc-fields{grid-template-columns:1fr}}
+#plateCalcModal.open{align-items:flex-start;padding-top:max(12px,env(safe-area-inset-top,0px));overflow-y:auto;-webkit-overflow-scrolling:touch}
+#plateCalcModal .plate-calc-sheet{max-height:min(92dvh,calc(var(--app-height, 100dvh) - 16px))}
+#plateCalcModal .modal-body{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+@media(max-width:768px){
+  .plate-calc-fields{grid-template-columns:1fr}
+  .topbar-plates-label{display:none}
+  .log-plates-btn{font-size:11px;padding:6px 10px}
+}
+@media(min-width:769px){
+  .topbar-plates .topbar-plates-label{display:inline}
+}
 

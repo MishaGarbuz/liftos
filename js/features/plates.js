@@ -100,16 +100,46 @@
     return typeof state !== 'undefined' && state.prefs?.units === 'lb' ? 'lb' : 'kg';
   }
 
+  function renderEmptyState() {
+    const body = document.getElementById('plateCalcBody');
+    if (!body) return;
+    body.innerHTML =
+      '<p class="plate-calc-hint">Enter a target total to see plates per side.</p>';
+  }
+
   function runCalculation() {
     const unit = getUnit();
-    const target = parseFloat(document.getElementById('plateCalcTarget')?.value);
+    const targetInput = document.getElementById('plateCalcTarget');
+    const targetRaw = targetInput?.value ?? '';
+    const target = parseFloat(targetRaw);
     const bar = parseFloat(document.getElementById('plateCalcBar')?.value);
+    if (targetRaw.trim() === '' || !Number.isFinite(target)) {
+      renderEmptyState();
+      return;
+    }
     renderResult(calculatePlates(target, unit, bar), unit);
+  }
+
+  function scrollPlateFieldIntoView(input) {
+    if (!input) return;
+    requestAnimationFrame(() => {
+      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+  }
+
+  function bindPlateCalcInputs() {
+    const modal = document.getElementById('plateCalcModal');
+    if (!modal || modal.dataset.bound === '1') return;
+    modal.dataset.bound = '1';
+    modal.querySelectorAll('input').forEach((input) => {
+      input.addEventListener('focus', () => scrollPlateFieldIntoView(input));
+    });
   }
 
   function openPlateCalculator(prefillWeight) {
     const modal = document.getElementById('plateCalcModal');
     if (!modal) return;
+    bindPlateCalcInputs();
     const unit = getUnit();
     const barInput = document.getElementById('plateCalcBar');
     const targetInput = document.getElementById('plateCalcTarget');
@@ -118,17 +148,21 @@
     if (targetInput) {
       targetInput.value =
         prefillWeight != null && prefillWeight !== ''
-          ? prefillWeight
+          ? String(prefillWeight)
           : '';
     }
     if (unitLbl) unitLbl.textContent = unit;
     modal.classList.add('open');
-    runCalculation();
-    targetInput?.focus();
+    if (targetInput?.value) runCalculation();
+    else renderEmptyState();
   }
 
   function closePlateCalculator() {
-    document.getElementById('plateCalcModal')?.classList.remove('open');
+    const modal = document.getElementById('plateCalcModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    document.getElementById('plateCalcTarget')?.blur();
+    document.getElementById('plateCalcBar')?.blur();
   }
 
   global.openPlateCalculator = openPlateCalculator;

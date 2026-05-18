@@ -37,7 +37,7 @@ Existing modules `js/auth.js` and `js/sync.js` stay at the top.
 
 ## Plate calculator
 
-**Plates** on the Log Workout page (and in the top bar on desktop) opens `#plateCalcModal`. Enter target total and bar weight; result shows plates per side (greedy, largest first) for metric or lb sets from prefs.
+**Plates Calculator** on the Log Workout page (and in the top bar on desktop) opens `#plateCalcModal`. Enter target total and bar weight; result shows plates per side (greedy, largest first) for metric or lb sets from prefs. The modal does not auto-focus inputs on open (avoids the keyboard covering the sheet on mobile PWA).
 
 Each exercise card has **Add set** / **Remove set** (removes the last row; at least one set remains).
 
