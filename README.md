@@ -105,11 +105,24 @@ aws s3 website s3://$BUCKET --index-document index.html
 ### Option 3: Vercel / Netlify
 Drag `lifting-tracker.html` (rename to `index.html`) — instant deploy.
 
-## Backend connection
+## Backend connection & auth
 
-The app reads **`/config.json`** on load (written by `./deploy.sh`). Sets and sessions sync to DynamoDB automatically when the API is reachable. If the API is down, data is cached in **localStorage** and syncs on the next visit.
+The app reads **`/config.json`** on load (written by `./deploy.sh`). You must **sign in** with your Cognito account before any API access.
 
-Local dev: `sam local start-api --port 3001` — the app uses `http://localhost:3001` when opened from localhost.
+- **API Gateway** requires a valid Cognito JWT on every request (except CORS preflight).
+- **Data** stays under `USER#michael` — only authenticated users in your user pool can reach it.
+- **CORS** is restricted to `liftos.net` origins (not `*`).
+
+### Create your login (once, after first deploy)
+
+```bash
+cd backend
+./create-user.sh your@email.com 'YourSecurePass123!'
+```
+
+Then sign in at https://www.liftos.net
+
+Local dev: `sam local start-api --port 3001` skips Cognito on localhost only (no JWT). Production always requires sign-in.
 
 ## DynamoDB Data Model
 

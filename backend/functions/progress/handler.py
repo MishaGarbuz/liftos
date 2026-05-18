@@ -1,23 +1,18 @@
 """
 Progress Lambda
 pk: PROGRESS#michael  sk: EXERCISE#<name>#WEEK#<nn>
-Returns charting data: best E1RM per exercise per week
 """
-import json, os, boto3, decimal
+import sys
 from boto3.dynamodb.conditions import Key
 
-TABLE_NAME = os.environ.get('TABLE_NAME', 'LiftingTracker')
-dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table(TABLE_NAME)
+sys.path.insert(0, '/var/task/shared')
+sys.path.insert(0, '../shared')
 
-class DecimalEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, decimal.Decimal):
-            return float(obj) if obj % 1 else int(obj)
-        return super().default(obj)
+try:
+    from shared.utils import table, resp, get_progress_pk
+except ImportError:
+    from utils import table, resp, get_progress_pk
 
-def resp(status, body):
-    return {'statusCode': status,'headers':{'Content-Type':'application/json','Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type,Authorization','Access-Control-Allow-Methods':'GET,POST,PUT,DELETE,OPTIONS'},'body':json.dumps(body,cls=DecimalEncoder)}
 
 def lambda_handler(event, context):
     method = event.get('httpMethod', 'GET')
@@ -25,29 +20,32 @@ def lambda_handler(event, context):
     exercise = path_params.get('exercise')
 
     if method == 'OPTIONS':
-        return resp(200, {})
+        return resp(event, 200, {})
 
-    pk = 'PROGRESS#michael'
+    pk = get_progress_pk(event)
 
-    # GET /progress/{exercise}
     if exercise:
         exercise_decoded = exercise.replace('%20', ' ').replace('+', ' ')
         result = table.query(
             KeyConditionExpression=Key('pk').eq(pk) & Key('sk').begins_with(f'EXERCISE#{exercise_decoded}#'),
-            ScanIndexForward=True
+            ScanIndexForward=True,
         )
         items = result.get('Items', [])
-        data = [{'week': int(i['week']), 'bestE1rm': float(i['bestE1rm']), 'sessionId': i.get('sessionId','')} for i in items]
-        return resp(200, {'exercise': exercise_decoded, 'data': data})
+        data = [
+            {
+                'week': int(i['week']),
+                'bestE1rm': float(i['bestE1rm']),
+                'sessionId': i.get('sessionId', ''),
+            }
+            for i in items
+        ]
+        return resp(event, 200, {'exercise': exercise_decoded, 'data': data})
 
-    # GET /progress - all exercises summary (latest week best)
     result = table.query(
         KeyConditionExpression=Key('pk').eq(pk),
-        ScanIndexForward=False
+        ScanIndexForward=False,
     )
     items = result.get('Items', [])
-    
-    # Group by exercise, return latest entry per exercise
     by_exercise = {}
     for item in items:
         ex = item['exercise']
@@ -55,7 +53,7 @@ def lambda_handler(event, context):
             by_exercise[ex] = {
                 'exercise': ex,
                 'week': int(item['week']),
-                'bestE1rm': float(item['bestE1rm'])
+                'bestE1rm': float(item['bestE1rm']),
             }
-    
-    return resp(200, {'exercises': list(by_exercise.values())})
+
+    return resp(event, 200, {'exercises': list(by_exercise.values())})

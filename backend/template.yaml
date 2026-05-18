@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Lifting Tracker - DynamoDB + API Gateway + Lambda backend
+Description: Lifting Tracker - DynamoDB + API Gateway + Lambda + Cognito
+
+Parameters:
+  AllowedOrigins:
+    Type: String
+    Default: 'https://www.liftos.net,https://liftos.net,http://localhost:5500,http://127.0.0.1:5500'
 
 Globals:
   Function:
@@ -10,15 +15,39 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: !Ref LiftingTrackerTable
-  Api:
-    Cors:
-      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-      AllowOrigin: "'*'"
+        DATA_USER_PK: USER#michael
+        DATA_PROGRESS_PK: PROGRESS#michael
+        ALLOWED_ORIGINS: !Ref AllowedOrigins
 
 Resources:
 
-  # ── DynamoDB Table ───────────────────────────────────────────────────────────
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: liftos-users
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: liftos-web
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+
   LiftingTrackerTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -49,7 +78,6 @@ Resources:
         - Key: App
           Value: LiftingTracker
 
-  # ── Lambda Execution Role ────────────────────────────────────────────────────
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -81,16 +109,22 @@ Resources:
                   - !GetAtt LiftingTrackerTable.Arn
                   - !Sub '${LiftingTrackerTable.Arn}/index/*'
 
-  # ── API Gateway ──────────────────────────────────────────────────────────────
   LiftingTrackerApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: prod
-      Description: Lifting Tracker REST API
+      Description: Lifting Tracker REST API (Cognito protected)
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'https://www.liftos.net'"
 
-  # ── Lambda Functions ─────────────────────────────────────────────────────────
-
-  # Sessions: GET /sessions, POST /sessions, GET /sessions/{id}, DELETE /sessions/{id}
   SessionsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -123,8 +157,23 @@ Resources:
             RestApiId: !Ref LiftingTrackerApi
             Path: /sessions/{sessionId}
             Method: DELETE
+        OptionsSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        OptionsSessionId:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions/{sessionId}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
 
-  # Sets: POST /sessions/{id}/sets, GET /sessions/{id}/sets
   SetsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -145,8 +194,15 @@ Resources:
             RestApiId: !Ref LiftingTrackerApi
             Path: /sessions/{sessionId}/sets
             Method: GET
+        OptionsSets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions/{sessionId}/sets
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
 
-  # Progress: GET /progress/{exercise}
   ProgressFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -167,8 +223,23 @@ Resources:
             RestApiId: !Ref LiftingTrackerApi
             Path: /progress
             Method: GET
+        OptionsProgress:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /progress
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        OptionsProgressExercise:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /progress/{exercise}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
 
-  # Summary: GET /summary (dashboard KPIs)
   SummaryFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -183,6 +254,14 @@ Resources:
             RestApiId: !Ref LiftingTrackerApi
             Path: /summary
             Method: GET
+        OptionsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /summary
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
 
 Outputs:
   ApiUrl:
@@ -190,8 +269,15 @@ Outputs:
     Value: !Sub 'https://${LiftingTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
     Export:
       Name: LiftingTrackerApiUrl
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+  CognitoClientId:
+    Description: Cognito App Client ID
+    Value: !Ref CognitoUserPoolClient
+  CognitoRegion:
+    Description: AWS Region for Cognito
+    Value: !Ref AWS::Region
   TableName:
     Description: DynamoDB Table Name
     Value: !Ref LiftingTrackerTable
-    Export:
-      Name: LiftingTrackerTableName

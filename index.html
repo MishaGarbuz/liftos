@@ -328,9 +328,65 @@ a{color:inherit;text-decoration:none}
 .set-del-btn:hover{color:var(--danger,#f87171);background:rgba(248,113,113,0.08)}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
+/* ── AUTH GATE ────────────────────────────────────────────────── */
+.auth-gate{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-gate.hidden{display:none}
+.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:28px 24px}
+.auth-card h1{font-size:22px;font-weight:700;margin-bottom:6px}
+.auth-card p{font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.5}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.auth-field input{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;font-size:14px}
+.auth-field input:focus{outline:none;border-color:var(--accent)}
+.auth-error{font-size:12px;color:#f87171;margin-top:10px;min-height:18px}
+.app-shell.app-locked{visibility:hidden;pointer-events:none}
+
+/* ── SESSION COMPLETE SUMMARY ─────────────────────────────────── */
+.complete-summary{position:fixed;inset:0;z-index:400;background:var(--bg);display:none;flex-direction:column;overflow-y:auto}
+.complete-summary.open{display:flex}
+.complete-summary-header{padding:24px 24px 16px;border-bottom:1px solid var(--border);text-align:center}
+.complete-summary-header h2{font-size:24px;font-weight:700;color:var(--accent);margin-bottom:6px}
+.complete-summary-header p{font-size:14px;color:var(--text-muted)}
+.complete-summary-body{padding:20px 24px 100px;max-width:720px;margin:0 auto;width:100%}
+.complete-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.complete-kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;text-align:center}
+.complete-kpi-val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.complete-kpi-lbl{font-size:11px;color:var(--text-muted);margin-top:4px}
+.complete-section{margin-bottom:20px}
+.complete-section-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:10px}
+.complete-pr-list{display:flex;flex-direction:column;gap:8px}
+.complete-pr-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md)}
+.complete-pr-item.is-pr{border-color:var(--success);background:rgba(34,197,94,0.06)}
+.complete-pr-badge{font-size:10px;font-weight:700;color:var(--success);text-transform:uppercase}
+.complete-summary-footer{position:fixed;bottom:0;left:0;right:0;padding:16px 24px;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:center}
+.btn-danger{color:#f87171;border-color:rgba(248,113,113,0.3)}
+.btn-danger:hover{background:rgba(248,113,113,0.1);color:#fca5a5}
+
 </style>
 </head>
 <body>
+
+<!-- LOGIN (Cognito) -->
+<div id="authGate" class="auth-gate">
+  <div class="auth-card">
+    <h1>LiftOS</h1>
+    <p>Sign in to access your training data. This app is private — only your account can connect.</p>
+    <form id="loginForm">
+      <div class="auth-field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" autocomplete="username" required>
+      </div>
+      <div class="auth-field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px" id="loginBtn">Sign in</button>
+      <div class="auth-error" id="loginError"></div>
+    </form>
+  </div>
+</div>
+
+<div id="appShell" class="app-shell app-locked">
 
 <!-- MOBILE OVERLAY -->
 <div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
@@ -380,6 +436,7 @@ a{color:inherit;text-decoration:none}
         <div class="user-sub">Week 1 · Phase 1</div>
       </div>
     </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" onclick="signOut()">Sign out</button>
   </div>
 </aside>
 
@@ -489,7 +546,7 @@ a{color:inherit;text-decoration:none}
         🟡 DELOAD WEEK — Reduce all weights by 40%. Focus on form, not maxing out.
       </div>
 
-      <div id="sessionSummary" class="session-summary">
+      <div id="sessionSummary" class="session-summary" style="display:none">
         <h3>✅ Session Complete!</h3>
         <p id="sessionSummaryText">Great work. Data saved.</p>
       </div>
@@ -628,6 +685,30 @@ a{color:inherit;text-decoration:none}
     <button class="timer-btn" onclick="addTimerTime(30)">+30s</button>
     <button class="timer-btn" onclick="resetTimer()">Reset</button>
     <button class="timer-btn" onclick="skipTimer()">Skip</button>
+  </div>
+</div>
+
+</div><!-- /appShell -->
+
+<!-- SESSION COMPLETE SUMMARY -->
+<div id="completeSummary" class="complete-summary" aria-hidden="true">
+  <div class="complete-summary-header">
+    <h2>Session complete</h2>
+    <p id="completeSummarySubtitle">—</p>
+  </div>
+  <div class="complete-summary-body">
+    <div class="complete-kpi-row" id="completeKpiRow"></div>
+    <div class="complete-section" id="completePrSection" style="display:none">
+      <div class="complete-section-title">Personal records</div>
+      <div class="complete-pr-list" id="completePrList"></div>
+    </div>
+    <div class="complete-section">
+      <div class="complete-section-title">Top lifts this session</div>
+      <div id="completeLiftList"></div>
+    </div>
+  </div>
+  <div class="complete-summary-footer">
+    <button class="btn btn-primary" onclick="dismissCompleteSummary()">View dashboard</button>
   </div>
 </div>
 
@@ -924,6 +1005,8 @@ const DAY_KEY_MAP = { Mon: 'mon', Tue: 'tue', Thu: 'thu', Fri: 'fri' };
 const DAY_KEY_REV = { mon: 'Mon', tue: 'Tue', thu: 'Thu', fri: 'Fri' };
 const LOCAL_STORAGE_KEY = 'liftos_state_v1';
 const FALLBACK_API_URL = 'https://pydkmtdqli.execute-api.ap-southeast-2.amazonaws.com/prod';
+const AUTH_STORAGE_KEY = 'liftos_auth_v1';
+let cognitoConfig = null;
 
 let timerState = { active:false, duration:90, remaining:90, exercise:"", interval:null };
 
@@ -1178,24 +1261,121 @@ function saveSetToState(sid, exName) {
   syncSetToApi(setData);
 }
 
+function getHistoricalBestE1rm(exercise, excludeSessionId) {
+  let best = 0;
+  state.sessions.filter(s => s.completed && s.sessionId !== excludeSessionId).forEach(s => {
+    s.sets.forEach(set => {
+      if (set.exercise === exercise && (set.e1rm || 0) > best) best = set.e1rm;
+    });
+  });
+  return best;
+}
+
+function buildSessionStats(session, doneSets) {
+  const totalVolume = doneSets.reduce((a, x) => a + (x.weight || 0) * (x.reps || 0), 0);
+  const bestE1rm = doneSets.length ? Math.max(...doneSets.map(s => s.e1rm || 0)) : 0;
+  const topSet = doneSets.find(s => s.e1rm === bestE1rm);
+  const byExercise = {};
+  doneSets.forEach(set => {
+    if (!byExercise[set.exercise]) byExercise[set.exercise] = { volume: 0, bestE1rm: 0, sets: 0 };
+    byExercise[set.exercise].volume += (set.weight || 0) * (set.reps || 0);
+    byExercise[set.exercise].sets += 1;
+    if ((set.e1rm || 0) > byExercise[set.exercise].bestE1rm) byExercise[set.exercise].bestE1rm = set.e1rm;
+  });
+  const prs = [];
+  Object.entries(byExercise).forEach(([name, data]) => {
+    const prev = getHistoricalBestE1rm(name, session.sessionId);
+    if (data.bestE1rm > 0 && data.bestE1rm > prev) {
+      prs.push({ exercise: name, e1rm: data.bestE1rm, prev: prev || null });
+    }
+  });
+  return { totalVolume, bestE1rm, topSet, byExercise, prs, totalSets: doneSets.length };
+}
+
+function showCompleteSummary(session, doneSets) {
+  const stats = buildSessionStats(session, doneSets);
+  const dayLabel = PROGRAM[session.day]?.label || session.day;
+  document.getElementById('completeSummarySubtitle').textContent =
+    `${session.date} · Week ${session.week} · ${dayLabel}`;
+  document.getElementById('completeKpiRow').innerHTML = `
+    <div class="complete-kpi">
+      <div class="complete-kpi-val">${stats.totalSets}</div>
+      <div class="complete-kpi-lbl">Sets logged</div>
+    </div>
+    <div class="complete-kpi">
+      <div class="complete-kpi-val">${Math.round(stats.totalVolume).toLocaleString()}kg</div>
+      <div class="complete-kpi-lbl">Total volume</div>
+    </div>
+    <div class="complete-kpi">
+      <div class="complete-kpi-val">${stats.bestE1rm > 0 ? stats.bestE1rm + 'kg' : '—'}</div>
+      <div class="complete-kpi-lbl">Best E1RM${stats.topSet ? ' · ' + stats.topSet.exercise.split(' ')[0] : ''}</div>
+    </div>`;
+  const prSection = document.getElementById('completePrSection');
+  const prList = document.getElementById('completePrList');
+  if (stats.prs.length) {
+    prSection.style.display = 'block';
+    prList.innerHTML = stats.prs.map(p => `
+      <div class="complete-pr-item is-pr">
+        <span>${p.exercise}</span>
+        <span><span class="complete-pr-badge">PR</span> ${p.e1rm}kg${p.prev ? ` <span style="color:var(--text-faint);font-weight:400">(was ${p.prev}kg)</span>` : ''}</span>
+      </div>`).join('');
+  } else {
+    prSection.style.display = 'none';
+  }
+  const liftList = document.getElementById('completeLiftList');
+  liftList.innerHTML = Object.entries(stats.byExercise)
+    .sort((a, b) => b[1].volume - a[1].volume)
+    .map(([name, d]) => `
+      <div class="complete-pr-item">
+        <span>${name}</span>
+        <span style="font-variant-numeric:tabular-nums">${Math.round(d.volume)}kg vol · ${d.bestE1rm}kg E1RM</span>
+      </div>`).join('');
+  document.getElementById('completeSummary').classList.add('open');
+  document.getElementById('completeSummary').setAttribute('aria-hidden', 'false');
+}
+
+function dismissCompleteSummary() {
+  document.getElementById('completeSummary').classList.remove('open');
+  document.getElementById('completeSummary').setAttribute('aria-hidden', 'true');
+  showPage('dashboard', document.querySelector('.nav-item[data-page="dashboard"]'));
+  renderDashboard();
+  renderHistory();
+  renderLogPage();
+}
+
 async function completeSession() {
   const session = getInProgressSession();
   if (!session) { alert('Log at least one set first!'); return; }
+  const doneSets = session.sets.filter(x => x.weight > 0 || x.reps > 0);
+  if (!doneSets.length) { alert('Log at least one set with weight and reps first!'); return; }
   session.completed = true;
   session.completedAt = new Date().toISOString();
-  const summary = document.getElementById('sessionSummary');
-  const doneSets = session.sets.filter(x => x.weight > 0 || x.reps > 0);
-  const totalSets = doneSets.length;
-  const bestE1rm = doneSets.length ? Math.max(...doneSets.map(s => s.e1rm || 0)) : 0;
-  document.getElementById('sessionSummaryText').textContent =
-    `Week ${state.currentWeek} ${state.currentDay} — ${totalSets} sets logged. Best E1RM: ${bestE1rm > 0 ? bestE1rm + 'kg' : '—'}`;
-  summary.style.display = 'block';
   await syncSessionToApi(session, true);
   activeApiSessionId = null;
   persistLocalState();
-  setTimeout(() => summary.style.display = 'none', 5000);
-  renderHistory();
-  renderDashboard();
+  showCompleteSummary(session, doneSets);
+}
+
+async function deleteSession(idx) {
+  const s = state.sessions[idx];
+  if (!s) return;
+  if (!confirm(`Delete this workout (${s.date}, Week ${s.week} ${s.day})? This cannot be undone.`)) return;
+  try {
+    if (apiOnline && s.sessionId) {
+      setSyncStatus('syncing', 'Deleting…');
+      await apiCall('DELETE', `/sessions/${encodeURIComponent(s.sessionId)}`);
+    }
+    state.sessions.splice(idx, 1);
+    persistLocalState();
+    closeSessionModal();
+    renderHistory();
+    renderDashboard();
+    renderProgressPage();
+    setSyncStatus(apiOnline ? 'connected' : 'offline', apiOnline ? 'Synced' : 'Offline');
+  } catch (e) {
+    alert('Could not delete: ' + e.message);
+    setSyncStatus('offline', 'Offline');
+  }
 }
 
 function clearSession() {
@@ -1413,6 +1593,10 @@ function renderHistory(filter='all') {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Edit
         </button>
+        <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteSession(${realIdx})" title="Delete workout">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          Delete
+        </button>
       </td>`;
     body.appendChild(tr);
   });
@@ -1525,6 +1709,7 @@ function openSessionModal(idx, editMode) {
       </button>`;
   } else {
     footer.innerHTML = `
+      <button class="btn btn-ghost btn-danger" onclick="deleteSession(${idx})">Delete workout</button>
       <button class="btn btn-ghost" onclick="closeSessionModal()">Close</button>
       <button class="btn btn-ghost" onclick="openSessionModal(${idx},true)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1761,26 +1946,133 @@ function setSyncStatus(mode, label) {
   lbl.textContent = label;
 }
 
-async function resolveApiBase() {
+async function loadAppConfig() {
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-    return 'http://localhost:3001';
+    API_BASE = 'http://localhost:3001';
+  } else {
+    try {
+      const cfg = await fetch('/config.json', { cache: 'no-store' }).then(r => r.json());
+      API_BASE = (cfg.apiUrl || FALLBACK_API_URL).replace(/\/$/, '');
+      cognitoConfig = cfg.cognito || null;
+    } catch {
+      API_BASE = FALLBACK_API_URL;
+    }
   }
+  return { apiUrl: API_BASE, cognito: cognitoConfig };
+}
+
+function saveAuthTokens(tokens) {
+  const payload = {
+    idToken: tokens.IdToken,
+    accessToken: tokens.AccessToken,
+    refreshToken: tokens.RefreshToken,
+    expiresAt: Date.now() + (tokens.ExpiresIn || 3600) * 1000,
+  };
+  sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload));
+  return payload;
+}
+
+function loadAuthTokens() {
   try {
-    const cfg = await fetch('/config.json', { cache: 'no-store' }).then(r => r.json());
-    return (cfg.apiUrl || FALLBACK_API_URL).replace(/\/$/, '');
-  } catch {
-    return FALLBACK_API_URL;
+    const raw = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function getIdToken() {
+  const t = loadAuthTokens();
+  if (!t?.idToken) return null;
+  if (t.expiresAt && t.expiresAt < Date.now() + 30000) return null;
+  return t.idToken;
+}
+
+async function cognitoInitiateAuth(email, password) {
+  if (!cognitoConfig?.clientId || !cognitoConfig?.region) {
+    throw new Error('Auth not configured. Redeploy backend and refresh config.json.');
   }
+  const res = await fetch(`https://cognito-idp.${cognitoConfig.region}.amazonaws.com/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-amz-json-1.1',
+      'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth',
+    },
+    body: JSON.stringify({
+      AuthFlow: 'USER_PASSWORD_AUTH',
+      ClientId: cognitoConfig.clientId,
+      AuthParameters: { USERNAME: email.trim(), PASSWORD: password },
+    }),
+  });
+  const data = await res.json();
+  if (data.__type || !data.AuthenticationResult) {
+    throw new Error(data.message || 'Sign in failed');
+  }
+  return data.AuthenticationResult;
+}
+
+async function cognitoRefreshToken() {
+  const stored = loadAuthTokens();
+  if (!stored?.refreshToken || !cognitoConfig) return null;
+  const res = await fetch(`https://cognito-idp.${cognitoConfig.region}.amazonaws.com/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-amz-json-1.1',
+      'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth',
+    },
+    body: JSON.stringify({
+      AuthFlow: 'REFRESH_TOKEN_AUTH',
+      ClientId: cognitoConfig.clientId,
+      AuthParameters: { REFRESH_TOKEN: stored.refreshToken },
+    }),
+  });
+  const data = await res.json();
+  if (data.AuthenticationResult) {
+    saveAuthTokens({ ...data.AuthenticationResult, RefreshToken: stored.refreshToken });
+    return data.AuthenticationResult.IdToken;
+  }
+  return null;
+}
+
+async function ensureIdToken() {
+  let token = getIdToken();
+  if (token) return token;
+  token = await cognitoRefreshToken();
+  return token;
+}
+
+function showAuthGate() {
+  document.getElementById('authGate')?.classList.remove('hidden');
+  document.getElementById('appShell')?.classList.add('app-locked');
+}
+
+function hideAuthGate() {
+  document.getElementById('authGate')?.classList.add('hidden');
+  document.getElementById('appShell')?.classList.remove('app-locked');
+}
+
+function signOut() {
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  apiOnline = false;
+  showAuthGate();
+  document.getElementById('loginError').textContent = '';
 }
 
 async function apiCall(method, path, body = null, timeoutMs = 12000) {
   if (!API_BASE) throw new Error('API not configured');
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const token = await ensureIdToken();
+  if (!token) { signOut(); throw new Error('Not signed in'); }
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  };
   if (body) opts.body = JSON.stringify(body);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${API_BASE}${path}`, { ...opts, signal: controller.signal });
+    if (res.status === 401) { signOut(); throw new Error('Session expired — sign in again'); }
     if (!res.ok) throw new Error(`API ${res.status}`);
     return res.json();
   } finally {
@@ -1932,7 +2224,6 @@ async function syncSessionToApi(session, completed) {
 
 async function initApi() {
   setSyncStatus('syncing', 'Connecting…');
-  API_BASE = await resolveApiBase();
   try {
     await apiCall('GET', '/summary');
     apiOnline = true;
@@ -1947,6 +2238,43 @@ async function initApi() {
   apiReady = true;
 }
 
+async function bootApp() {
+  const dayMap = { 1: 'Mon', 2: 'Tue', 4: 'Thu', 5: 'Fri' };
+  const todayNum = new Date().getDay();
+  if (dayMap[todayNum]) state.currentDay = dayMap[todayNum];
+  loadLocalState();
+  renderDashboard();
+  renderSchedule();
+  renderPlanPage();
+  renderProgressPage();
+  renderHistory();
+  await initApi();
+  renderDashboard();
+  renderHistory();
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  try {
+    const tokens = await cognitoInitiateAuth(email, password);
+    saveAuthTokens(tokens);
+    hideAuthGate();
+    await bootApp();
+  } catch (err) {
+    errEl.textContent = err.message || 'Sign in failed';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+}
+
 function exportData() {
   const data={exportedAt:new Date().toISOString(),currentWeek:state.currentWeek,sessions:state.sessions};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -1959,21 +2287,21 @@ function exportData() {
 /* ═══════════════════════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-  const dayMap = { 1: 'Mon', 2: 'Tue', 4: 'Thu', 5: 'Fri' };
-  const todayNum = new Date().getDay();
-  if (dayMap[todayNum]) state.currentDay = dayMap[todayNum];
-  loadLocalState();
-  renderDashboard();
-  renderSchedule();
-  renderPlanPage();
-  renderProgressPage();
-  renderHistory();
-  initApi().then(() => {
-    renderDashboard();
-    renderHistory();
-    if (document.getElementById('page-progress')?.classList.contains('active')) renderProgressPage();
-  });
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
+  await loadAppConfig();
+  const stored = loadAuthTokens();
+  if (stored?.idToken) {
+    try {
+      await ensureIdToken();
+      hideAuthGate();
+      await bootApp();
+      return;
+    } catch {
+      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }
+  showAuthGate();
 });
 </script>
 

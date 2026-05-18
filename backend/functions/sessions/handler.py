@@ -2,61 +2,56 @@
 Sessions Lambda
 pk: USER#michael  sk: SESSION#<sessionId>
 """
-import json, uuid, sys
+import json
+import uuid
+import sys
+from boto3.dynamodb.conditions import Key
+
 sys.path.insert(0, '/var/task/shared')
 sys.path.insert(0, '../shared')
 
 try:
-    from shared.utils import table, resp, now_iso
+    from shared.utils import table, resp, now_iso, get_user_pk, verify_session_owned
 except ImportError:
-    import os, boto3, decimal
-    from datetime import datetime, timezone
-    import json as _json
-    TABLE_NAME = os.environ.get('TABLE_NAME', 'LiftingTracker')
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table(TABLE_NAME)
-    class DecimalEncoder(_json.JSONEncoder):
-        def default(self, obj):
-            if isinstance(obj, decimal.Decimal):
-                return float(obj) if obj % 1 else int(obj)
-            return super().default(obj)
-    def resp(status, body):
-        return {'statusCode': status,'headers':{'Content-Type':'application/json','Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type,Authorization','Access-Control-Allow-Methods':'GET,POST,PUT,DELETE,OPTIONS'},'body':_json.dumps(body,cls=DecimalEncoder)}
-    def now_iso():
-        return datetime.now(timezone.utc).isoformat()
+    from utils import table, resp, now_iso, get_user_pk, verify_session_owned
 
-USER_PK = 'USER#michael'
+
+def _delete_session_cascade(event, user_pk, session_id):
+    sets_result = table.query(
+        KeyConditionExpression=Key('pk').eq(f'SESSION#{session_id}') & Key('sk').begins_with('SET#'),
+    )
+    for item in sets_result.get('Items', []):
+        table.delete_item(Key={'pk': item['pk'], 'sk': item['sk']})
+    table.delete_item(Key={'pk': user_pk, 'sk': f'SESSION#{session_id}'})
+
 
 def lambda_handler(event, context):
     method = event.get('httpMethod', 'GET')
     path_params = event.get('pathParameters') or {}
     session_id = path_params.get('sessionId')
+    user_pk = get_user_pk(event)
 
     if method == 'OPTIONS':
-        return resp(200, {})
+        return resp(event, 200, {})
 
-    # GET /sessions - list all sessions
     if method == 'GET' and not session_id:
         result = table.query(
-            KeyConditionExpression='pk = :pk AND begins_with(sk, :prefix)',
-            ExpressionAttributeValues={':pk': USER_PK, ':prefix': 'SESSION#'},
-            ScanIndexForward=False
+            KeyConditionExpression=Key('pk').eq(user_pk) & Key('sk').begins_with('SESSION#'),
+            ScanIndexForward=False,
         )
-        return resp(200, {'sessions': result.get('Items', [])})
+        return resp(event, 200, {'sessions': result.get('Items', [])})
 
-    # GET /sessions/{id}
     if method == 'GET' and session_id:
-        item = table.get_item(Key={'pk': USER_PK, 'sk': f'SESSION#{session_id}'})
+        item = table.get_item(Key={'pk': user_pk, 'sk': f'SESSION#{session_id}'})
         if 'Item' not in item:
-            return resp(404, {'error': 'Session not found'})
-        return resp(200, item['Item'])
+            return resp(event, 404, {'error': 'Session not found'})
+        return resp(event, 200, item['Item'])
 
-    # POST /sessions - create/update session
     if method == 'POST':
         body = json.loads(event.get('body') or '{}')
         sid = body.get('sessionId') or str(uuid.uuid4())
         item = {
-            'pk': USER_PK,
+            'pk': user_pk,
             'sk': f'SESSION#{sid}',
             'sessionId': sid,
             'week': int(body.get('week', 1)),
@@ -68,14 +63,15 @@ def lambda_handler(event, context):
             'completedSets': int(body.get('completedSets', 0)),
             'notes': body.get('notes', ''),
             'createdAt': body.get('createdAt', now_iso()),
-            'updatedAt': now_iso()
+            'updatedAt': now_iso(),
         }
         table.put_item(Item=item)
-        return resp(201, item)
+        return resp(event, 201, item)
 
-    # DELETE /sessions/{id}
     if method == 'DELETE' and session_id:
-        table.delete_item(Key={'pk': USER_PK, 'sk': f'SESSION#{session_id}'})
-        return resp(200, {'deleted': session_id})
+        if not verify_session_owned(event, session_id):
+            return resp(event, 404, {'error': 'Session not found'})
+        _delete_session_cascade(event, user_pk, session_id)
+        return resp(event, 200, {'deleted': session_id})
 
-    return resp(405, {'error': 'Method not allowed'})
+    return resp(event, 405, {'error': 'Method not allowed'})

@@ -1,4 +1,9 @@
 {
   "apiUrl": "https://pydkmtdqli.execute-api.ap-southeast-2.amazonaws.com/prod",
-  "appUrl": "https://www.liftos.net"
+  "appUrl": "https://www.liftos.net",
+  "cognito": {
+    "region": "ap-southeast-2",
+    "userPoolId": "ap-southeast-2_RIDeYjIqJ",
+    "clientId": "6lg1fj4fhs60dps7g7g262scgp"
+  }
 }
