@@ -1090,7 +1090,7 @@ const DAY_KEY_REV = { mon: 'Mon', tue: 'Tue', thu: 'Thu', fri: 'Fri' };
 const LOCAL_STORAGE_KEY = 'liftos_state_v1';
 const FALLBACK_API_URL = 'https://pydkmtdqli.execute-api.ap-southeast-2.amazonaws.com/prod';
 const AUTH_STORAGE_KEY = 'liftos_auth_v1';
-let cognitoConfig = null;
+var cognitoConfig = null;
 
 let timerState = { active:false, duration:90, remaining:90, exercise:"", interval:null };
 
@@ -2093,8 +2093,10 @@ async function loadAppConfig() {
       const cfg = await fetch('/config.json', { cache: 'no-store' }).then(r => r.json());
       API_BASE = (cfg.apiUrl || FALLBACK_API_URL).replace(/\/$/, '');
       cognitoConfig = cfg.cognito || null;
+      window.cognitoConfig = cognitoConfig;
     } catch {
       API_BASE = FALLBACK_API_URL;
+      window.cognitoConfig = null;
     }
   }
   return { apiUrl: API_BASE, cognito: cognitoConfig };

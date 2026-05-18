@@ -14,8 +14,17 @@
     return null;
   }
 
+  function cognitoConfig() {
+    const cfg = global.cognitoConfig;
+    if (!cfg?.region || !cfg?.clientId) {
+      throw new Error('Auth not configured. Refresh the page or redeploy config.json.');
+    }
+    return cfg;
+  }
+
   async function cognitoIdpRequest(target, payload) {
-    const res = await fetch(`https://cognito-idp.${global.cognitoConfig.region}.amazonaws.com/`, {
+    const cfg = cognitoConfig();
+    const res = await fetch(`https://cognito-idp.${cfg.region}.amazonaws.com/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-amz-json-1.1',
@@ -31,10 +40,10 @@
   global.cognitoIdpRequest = cognitoIdpRequest;
 
   global.cognitoForgotPassword = async function (email) {
-    if (!global.cognitoConfig?.clientId) throw new Error('Auth not configured.');
+    const cfg = cognitoConfig();
     const data = await cognitoIdpRequest(
       'AWSCognitoIdentityProviderService.ForgotPassword',
-      { ClientId: global.cognitoConfig.clientId, Username: email.trim() },
+      { ClientId: cfg.clientId, Username: email.trim() },
     );
     if (data.__type) throw new Error(data.message || 'Could not send reset code');
     return data;
@@ -43,10 +52,11 @@
   global.cognitoConfirmForgotPassword = async function (email, code, newPassword) {
     const err = validateCognitoPassword(newPassword);
     if (err) throw new Error(err);
+    const cfg = cognitoConfig();
     const data = await cognitoIdpRequest(
       'AWSCognitoIdentityProviderService.ConfirmForgotPassword',
       {
-        ClientId: global.cognitoConfig.clientId,
+        ClientId: cfg.clientId,
         Username: email.trim(),
         ConfirmationCode: code.trim(),
         Password: newPassword,
