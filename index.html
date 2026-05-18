@@ -165,7 +165,7 @@
           <div id="syncDetail" class="sync-detail"></div>
         </div>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="openPlateCalculator()" title="Plate calculator">
+      <button type="button" class="btn btn-ghost btn-sm topbar-plates" onclick="openPlateCalculator()" title="Plate calculator">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
         Plates
       </button>
@@ -250,8 +250,17 @@
     ═══════════════════════════════════════════════════════════ -->
     <div class="page" id="page-log">
       <div class="log-page-scroll">
-      <div class="section-heading">Log Workout</div>
-      <div class="section-sub">Track every set with weight, reps and RPE</div>
+      <div class="log-page-header">
+        <div>
+          <div class="section-heading">Log Workout</div>
+          <div class="section-sub">Track every set with weight, reps and RPE</div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm log-plates-btn" onclick="openPlateCalculator()" title="Plate calculator — target weight to bar + plates">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+          Plates
+        </button>
+      </div>
+
 
       <div class="flex items-center gap-12 mb-16" style="flex-wrap:wrap">
         <div class="week-selector">

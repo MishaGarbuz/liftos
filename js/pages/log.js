@@ -353,11 +353,35 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
         <tbody>${setsHtml}</tbody>
       </table>
     </div>
-    <button class="add-set-btn" onclick="addSet(this,'${JSON.stringify(ex).replace(/'/g,"\\'")}',${bi},${ei})">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add set
-    </button>`;
+    <div class="set-row-actions">
+      <button type="button" class="set-row-btn remove-set-btn" onclick="removeSet(this,'${JSON.stringify(ex).replace(/'/g,"\\'")}',${bi},${ei})" title="Remove last set">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Remove set
+      </button>
+      <button type="button" class="set-row-btn add-set-btn" onclick="addSet(this,'${JSON.stringify(ex).replace(/'/g,"\\'")}',${bi},${ei})" title="Add a set">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add set
+      </button>
+    </div>`;
+  updateSetRowActions(card);
   return card;
+}
+
+function getExerciseTbody(btn) {
+  return btn.closest('.exercise-card')?.querySelector('.sets-table tbody');
+}
+
+function renumberSetRows(tbody) {
+  [...tbody.rows].forEach((row, i) => {
+    const numCell = row.querySelector('.set-num');
+    if (numCell) numCell.textContent = String(i + 1);
+  });
+}
+
+function updateSetRowActions(card) {
+  const tbody = card?.querySelector('.sets-table tbody');
+  const removeBtn = card?.querySelector('.remove-set-btn');
+  if (removeBtn && tbody) removeBtn.disabled = tbody.rows.length <= 1;
 }
 
 function toggleWarmupItem(cb, itemId) {
@@ -366,10 +390,30 @@ function toggleWarmupItem(cb, itemId) {
   else item.classList.remove('done');
 }
 
+function removeSet(btn, exJson, bi, ei) {
+  try {
+    const card = btn.closest('.exercise-card');
+    const tbody = getExerciseTbody(btn);
+    if (!tbody || tbody.rows.length <= 1) return;
+    const lastRow = tbody.rows[tbody.rows.length - 1];
+    const sid = lastRow.id;
+    lastRow.remove();
+    const session = getInProgressSession();
+    if (session && sid) {
+      session.sets = session.sets.filter(s => s.sid !== sid);
+      persistLocalState();
+    }
+    renumberSetRows(tbody);
+    updateSetRowActions(card);
+  } catch (e) { console.error(e); }
+}
+
 function addSet(btn, exJson, bi, ei) {
   try {
     const ex = JSON.parse(exJson);
-    const tbody = btn.previousElementSibling.querySelector('tbody');
+    const card = btn.closest('.exercise-card');
+    const tbody = getExerciseTbody(btn);
+    if (!tbody) return;
     const setNum = tbody.rows.length + 1;
     const sid = `set-${state.currentDay}-${bi}-${ei}-${setNum-1}`;
     const deload = [6,12].includes(state.currentWeek);
@@ -389,6 +433,7 @@ function addSet(btn, exJson, bi, ei) {
         </button>
       </td>`;
     tbody.appendChild(tr);
+    updateSetRowActions(card);
   } catch(e) { console.error(e); }
 }
 

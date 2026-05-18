@@ -175,8 +175,15 @@ a{color:inherit;text-decoration:none}
 .set-done-btn{width:32px;height:32px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);color:var(--text-faint);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all var(--transition);flex-shrink:0}
 .set-done-btn:hover{background:rgba(34,197,94,0.1);border-color:var(--success);color:var(--success)}
 .set-done-btn.checked{background:rgba(34,197,94,0.15);border-color:var(--success);color:var(--success)}
-.add-set-btn{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-faint);padding:6px 8px;border-radius:var(--radius-sm);transition:all var(--transition);margin-top:4px}
-.add-set-btn:hover{background:var(--surface-2);color:var(--accent)}
+.log-page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.log-page-header .section-heading{margin-bottom:4px}
+.log-plates-btn{flex-shrink:0;white-space:nowrap}
+.set-row-actions{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap}
+.set-row-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-faint);padding:6px 8px;border-radius:var(--radius-sm);transition:all var(--transition)}
+.set-row-btn:hover{background:var(--surface-2)}
+.set-row-btn.add-set-btn:hover{color:var(--accent)}
+.set-row-btn.remove-set-btn:hover{color:var(--warning)}
+.set-row-btn.remove-set-btn:disabled{opacity:0.35;pointer-events:none}
 
 /* ── STANDALONE EXERCISE ──────────────────────────────────────── */
 .standalone-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:14px;overflow:hidden}
@@ -344,6 +351,7 @@ body.auth-locked .bottom-nav{display:none!important}
   .topbar-title{font-size:12px}
   .topbar-actions{gap:6px;flex-wrap:wrap}
   .topbar-actions .btn-ghost{display:none}
+  .topbar-actions .btn-ghost.topbar-plates{display:inline-flex}
   .topbar-actions .btn-primary.btn-sm{display:none}
   .sync-detail{display:none}
   .sync-status{padding:5px 8px;font-size:10px}
