@@ -1,0 +1,25 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+
+# AWS SAM / deploy artifacts
+backend/.aws-sam/
+backend/packaged.yaml
+backend/samconfig.toml
+
+# IDE
+.idea/
+.vscode/
+*.swp

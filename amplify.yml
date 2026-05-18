@@ -1,0 +1,31 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - echo "LiftOS static deploy — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        - test -f index.html
+        - test -f config.json
+    build:
+      commands:
+        - echo "No build step (single-page app)"
+  artifacts:
+    baseDirectory: /
+    files:
+      - index.html
+      - config.json
+  cache:
+    paths: []
+  customHeaders:
+    - pattern: 'config.json'
+      headers:
+        - key: Cache-Control
+          value: no-cache, no-store, must-revalidate
+    - pattern: 'index.html'
+      headers:
+        - key: Cache-Control
+          value: no-cache, no-store, must-revalidate
+customRedirects:
+  - source: '/<*>'
+    target: '/index.html'
+    status: '404-200'

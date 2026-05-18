@@ -1,0 +1,197 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lifting Tracker - DynamoDB + API Gateway + Lambda backend
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 15
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref LiftingTrackerTable
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
+
+Resources:
+
+  # ── DynamoDB Table ───────────────────────────────────────────────────────────
+  LiftingTrackerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: LiftingTracker
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: sk-pk-index
+          KeySchema:
+            - AttributeName: sk
+              KeyType: HASH
+            - AttributeName: pk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: App
+          Value: LiftingTracker
+
+  # ── Lambda Execution Role ────────────────────────────────────────────────────
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:BatchGetItem
+                Resource:
+                  - !GetAtt LiftingTrackerTable.Arn
+                  - !Sub '${LiftingTrackerTable.Arn}/index/*'
+
+  # ── API Gateway ──────────────────────────────────────────────────────────────
+  LiftingTrackerApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Description: Lifting Tracker REST API
+
+  # ── Lambda Functions ─────────────────────────────────────────────────────────
+
+  # Sessions: GET /sessions, POST /sessions, GET /sessions/{id}, DELETE /sessions/{id}
+  SessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LiftingTracker-Sessions
+      CodeUri: functions/sessions/
+      Handler: handler.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        GetSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions
+            Method: GET
+        PostSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions
+            Method: POST
+        GetSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions/{sessionId}
+            Method: GET
+        DeleteSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions/{sessionId}
+            Method: DELETE
+
+  # Sets: POST /sessions/{id}/sets, GET /sessions/{id}/sets
+  SetsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LiftingTracker-Sets
+      CodeUri: functions/sets/
+      Handler: handler.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        PostSet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions/{sessionId}/sets
+            Method: POST
+        GetSets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions/{sessionId}/sets
+            Method: GET
+
+  # Progress: GET /progress/{exercise}
+  ProgressFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LiftingTracker-Progress
+      CodeUri: functions/progress/
+      Handler: handler.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        GetProgress:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /progress/{exercise}
+            Method: GET
+        GetAllProgress:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /progress
+            Method: GET
+
+  # Summary: GET /summary (dashboard KPIs)
+  SummaryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LiftingTracker-Summary
+      CodeUri: functions/summary/
+      Handler: handler.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        GetSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /summary
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${LiftingTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+    Export:
+      Name: LiftingTrackerApiUrl
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !Ref LiftingTrackerTable
+    Export:
+      Name: LiftingTrackerTableName
