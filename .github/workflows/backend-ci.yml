@@ -13,13 +13,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: ap-southeast-2
+      AWS_REGION: ap-southeast-2
+      SAM_CLI_TELEMETRY: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/setup-sam@v2
       - name: SAM validate & build
         working-directory: backend
         run: |
-          sam validate
+          sam validate --region ap-southeast-2
           sam build
       - name: Python syntax check
         run: |
