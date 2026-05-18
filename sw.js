@@ -1,4 +1,4 @@
-const CACHE = 'liftos-shell-v2';
+const CACHE = 'liftos-shell-v3';
 const SHELL = ['/', '/index.html', '/config.json', '/manifest.json', '/icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
