@@ -49,6 +49,12 @@ Serve `index.html` on localhost; app uses `http://localhost:3001` automatically.
 - Cloud sync with offline queue; import/export JSON backups
 - Per-user DynamoDB partition (JWT `sub`); legacy `USER#michael` data migrates on first login
 - Cognito forgot-password flow on login screen
+- Plate calculator (target weight → bar + plates per side)
+- Last-time hints, repeat last workout, rest timer alerts
+
+## Frontend layout
+
+See [docs/FRONTEND.md](docs/FRONTEND.md) for script load order and module boundaries (`index.html`, `css/app.css`, `js/**`).
 
 ## Teardown
 

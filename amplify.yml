@@ -7,6 +7,8 @@ frontend:
         - test -f index.html
         - test -f config.json
         - test -f manifest.json
+        - test -f css/app.css
+        - test -d js/pages
     build:
       commands:
         - echo "No build step (single-page app)"
