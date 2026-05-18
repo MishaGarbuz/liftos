@@ -249,6 +249,12 @@ a{color:inherit;text-decoration:none}
 .history-table th{font-size:11px;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
 .history-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
 .history-table tr:hover td{background:var(--surface-2)}
+.history-table tbody tr.history-row{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.history-table tbody tr.history-row:active td{background:var(--surface-3)}
+.history-chevron{width:28px;text-align:right;color:var(--text-faint);font-size:18px;font-weight:300}
+.last-time-hint{font-size:12px;color:var(--text-muted);margin-top:8px;padding:8px 10px;background:var(--surface-2);border-radius:var(--radius-md);border:1px solid var(--border);line-height:1.45}
+.last-time-hint strong{color:var(--text);font-weight:600}
+.log-repeat-hint{font-size:12px;color:var(--text-muted);margin:0 0 12px}
 .progress-bar-wrap{height:5px;background:var(--surface-3);border-radius:9999px;width:100px;overflow:hidden}
 .progress-bar-fill{height:100%;background:var(--accent);border-radius:9999px}
 
@@ -583,6 +589,10 @@ html.ios-pwa .complete-summary-footer{padding-bottom:calc(16px + var(--safe-bott
         <input type="checkbox" id="timerVibrate" onchange="setTimerVibrate(this.checked)">
         Timer vibration
       </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--text-muted);cursor:pointer">
+        <input type="checkbox" id="timerNotify" onchange="setTimerNotify(this.checked)">
+        Rest timer alerts
+      </label>
     </div>
   </div>
 
@@ -708,6 +718,8 @@ html.ios-pwa .complete-summary-footer{padding-bottom:calc(16px + var(--safe-bott
 
       <div id="logCompletedBanner" class="log-completed-banner hidden"></div>
 
+
+      <p id="logRepeatHint" class="log-repeat-hint hidden"></p>
       <div id="deloadBanner" style="display:none" class="api-banner" style="background:rgba(245,158,11,0.08)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         🟡 DELOAD WEEK — Reduce all weights by 40%. Focus on form, not maxing out.
@@ -720,7 +732,11 @@ html.ios-pwa .complete-summary-footer{padding-bottom:calc(16px + var(--safe-bott
 
       <div id="workoutContent"></div>
 
-      <div id="logSessionActions" style="display:flex;gap:10px;margin-top:20px">
+      <div id="logSessionActions" style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+        <button type="button" class="btn btn-ghost" id="repeatLastBtn" style="display:none" onclick="repeatLastWorkout()" title="Copy sets from your last session on this day">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Repeat last
+        </button>
         <button class="btn btn-primary" onclick="completeSession()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           Complete Session
@@ -761,7 +777,7 @@ html.ios-pwa .complete-summary-footer{padding-bottom:calc(16px + var(--safe-bott
     ═══════════════════════════════════════════════════════════ -->
     <div class="page" id="page-history">
       <div class="section-heading">Session History</div>
-      <div class="section-sub">All logged training sessions</div>
+      <div class="section-sub">All logged training sessions · tap a row to view</div>
 
       <div class="card">
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
@@ -775,7 +791,7 @@ html.ios-pwa .complete-summary-footer{padding-bottom:calc(16px + var(--safe-bott
           <table class="history-table">
             <thead>
               <tr>
-                <th>Date</th><th>Day</th><th>Week</th><th>Sets Done</th><th>Top E1RM</th><th>Completion</th><th></th>
+                <th>Date</th><th>Day</th><th>Week</th><th>Sets Done</th><th>Top E1RM</th><th>Completion</th><th aria-hidden="true"></th>
               </tr>
             </thead>
             <tbody id="historyBody"></tbody>
@@ -1191,7 +1207,7 @@ let state = {
   dashE1rmChart: null,
   planWeek: 1,
   progressLift: "Bench Press",
-  prefs: { units: 'kg', timerVibrate: true }
+  prefs: { units: 'kg', timerVibrate: true, timerNotify: true }
 };
 
 const REST_PREFS_KEY = 'liftos_rest_v1';
@@ -1209,6 +1225,7 @@ const AUTH_STORAGE_KEY = 'liftos_auth_v1';
 var cognitoConfig = null;
 
 let timerState = { active:false, duration:90, remaining:90, exercise:"", interval:null };
+let timerPageTimeout = null;
 
 /* ═══════════════════════════════════════════════════════════════
    NAVIGATION
@@ -1255,6 +1272,146 @@ function closeSidebar(){ document.getElementById('sidebar').classList.remove('op
 ═══════════════════════════════════════════════════════════════ */
 function getCompletedSessionForSlot(week, day) {
   return state.sessions.find(s => s.week === week && s.day === day && s.completed);
+}
+
+function getLastCompletedSessionForDay(day) {
+  const matches = state.sessions.filter(s => s.completed && s.day === day);
+  matches.sort((a, b) => {
+    if (b.week !== a.week) return b.week - a.week;
+    const da = Date.parse(a.completedAt || a.date) || 0;
+    const db = Date.parse(b.completedAt || b.date) || 0;
+    return db - da;
+  });
+  return matches[0] || null;
+}
+
+function getLastSetsForExercise(exerciseName, day) {
+  const session = getLastCompletedSessionForDay(day);
+  if (!session) return null;
+  const sets = session.sets
+    .filter(s => s.exercise === exerciseName && (s.weight > 0 || s.reps > 0))
+    .sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0));
+  return sets.length ? sets : null;
+}
+
+function formatLastTimeSummary(sets) {
+  return sets.map(s => {
+    const w = displayWeight(s.weight);
+    const rpe = s.rpe ? ` @${s.rpe}` : '';
+    return `${w}${weightUnitLabel()}×${s.reps}${rpe}`;
+  }).join(' · ');
+}
+
+function findExerciseCard(exName) {
+  return [...document.querySelectorAll('#workoutContent .exercise-card')].find(
+    card => card.querySelector('.exercise-name')?.textContent === exName
+  );
+}
+
+function fillExerciseSets(exName, priorSets) {
+  const card = findExerciseCard(exName);
+  if (!card || !priorSets?.length) return;
+  const rows = card.querySelectorAll('tbody tr.set-row');
+  priorSets.forEach((set, i) => {
+    if (i >= rows.length) return;
+    const sid = rows[i].id;
+    const wEl = document.getElementById(sid + '-w');
+    const rEl = document.getElementById(sid + '-r');
+    const rpeEl = document.getElementById(sid + '-rpe');
+    if (wEl) wEl.value = displayWeight(set.weight);
+    if (rEl) rEl.value = set.reps;
+    if (rpeEl && set.rpe) rpeEl.value = set.rpe;
+  });
+}
+
+function syncDomSetsToState() {
+  document.querySelectorAll('#workoutContent tr.set-row').forEach(row => {
+    const sid = row.id;
+    const exName = row.closest('.exercise-card')?.querySelector('.exercise-name')?.textContent;
+    if (!exName || !sid) return;
+    const wEl = document.getElementById(sid + '-w');
+    const rEl = document.getElementById(sid + '-r');
+    const w = parseFloat(wEl?.value);
+    const r = parseInt(rEl?.value, 10);
+    if ((Number.isFinite(w) && w > 0) || (Number.isFinite(r) && r > 0)) {
+      saveSetToState(sid, exName);
+    }
+  });
+}
+
+function applyInProgressSets(session) {
+  const byEx = {};
+  session.sets.forEach(s => {
+    if (!byEx[s.exercise]) byEx[s.exercise] = [];
+    byEx[s.exercise].push(s);
+  });
+  Object.entries(byEx).forEach(([ex, sets]) => {
+    sets.sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0));
+    fillExerciseSets(ex, sets);
+    sets.forEach(s => {
+      if (!s.sid) return;
+      const row = document.getElementById(s.sid);
+      const btn = document.getElementById(s.sid + '-done');
+      if (row && btn && (s.weight > 0 || s.reps > 0)) {
+        btn.classList.add('checked');
+        row.classList.add('done');
+      }
+    });
+  });
+}
+
+function updateLogRepeatUi() {
+  const repeatBtn = document.getElementById('repeatLastBtn');
+  const hint = document.getElementById('logRepeatHint');
+  const last = getLastCompletedSessionForDay(state.currentDay);
+  const completed = getCompletedSessionForSlot(state.currentWeek, state.currentDay);
+  if (repeatBtn) {
+    const show = last && !completed;
+    repeatBtn.style.display = show ? 'inline-flex' : 'none';
+    if (show) {
+      repeatBtn.title = `Copy sets from Week ${last.week} (${last.date})`;
+    }
+  }
+  if (hint) {
+    if (last && !completed) {
+      hint.classList.remove('hidden');
+      hint.textContent = `Last ${PROGRAM[state.currentDay]?.label || state.currentDay}: Week ${last.week} · ${last.date} — tap Repeat last to pre-fill.`;
+    } else {
+      hint.classList.add('hidden');
+      hint.textContent = '';
+    }
+  }
+}
+
+function repeatLastWorkout() {
+  const last = getLastCompletedSessionForDay(state.currentDay);
+  if (!last) {
+    alert('No previous session for this day yet.');
+    return;
+  }
+  if (!confirm(`Copy sets from Week ${last.week} (${last.date})? This replaces any in-progress log for this slot.`)) {
+    return;
+  }
+  state.sessions = state.sessions.filter(
+    s => !(s.week === state.currentWeek && s.day === state.currentDay && !s.completed)
+  );
+  activeApiSessionId = null;
+  renderLogPage();
+  requestAnimationFrame(() => {
+    const byEx = {};
+    last.sets
+      .filter(s => s.weight > 0 || s.reps > 0)
+      .forEach(s => {
+        if (!byEx[s.exercise]) byEx[s.exercise] = [];
+        byEx[s.exercise].push(s);
+      });
+    Object.entries(byEx).forEach(([ex, sets]) => {
+      sets.sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0));
+      fillExerciseSets(ex, sets);
+    });
+    syncDomSetsToState();
+    showSaveToast('Last workout copied — adjust weights and go');
+  });
 }
 
 function viewHistoricWorkout(week, day) {
@@ -1335,6 +1492,10 @@ function renderLogPage() {
     renderLogCompletedBanner(completed);
     document.getElementById('deloadBanner').style.display = 'none';
     if (actions) actions.style.display = 'none';
+    const hint = document.getElementById('logRepeatHint');
+    if (hint) { hint.classList.add('hidden'); hint.textContent = ''; }
+    const repeatBtn = document.getElementById('repeatLastBtn');
+    if (repeatBtn) repeatBtn.style.display = 'none';
     wc.innerHTML = '<p class="log-completed-hint">This session is finished. Use the button above to review your logged sets, or switch to another day to log a new workout.</p>';
     return;
   }
@@ -1390,6 +1551,12 @@ function renderLogPage() {
       });
     }
   });
+
+  updateLogRepeatUi();
+  const inProgressSets = getInProgressSession();
+  if (inProgressSets?.sets?.length) {
+    requestAnimationFrame(() => applyInProgressSets(inProgressSets));
+  }
 }
 
 function buildExerciseCard(ex, bi, ei, inSuper) {
@@ -1399,6 +1566,11 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   const card = document.createElement('div');
   card.className = 'exercise-card'+(inSuper?' in-superset':'');
   card.id = `ex-${state.currentDay}-${bi}-${ei}`;
+
+  const lastSets = getLastSetsForExercise(ex.name, state.currentDay);
+  const lastHint = lastSets
+    ? `<div class="last-time-hint"><strong>Last time:</strong> ${formatLastTimeSummary(lastSets)}</div>`
+    : '';
 
   let setsHtml = '';
   for(let s=0;s<ex.sets;s++){
@@ -1429,6 +1601,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
           <span class="badge badge-muted">Rest ${ex.rest}s</span>
         </div>
         <div class="exercise-notes">${ex.notes}</div>
+        ${lastHint}
         <div style="font-size:11px;color:var(--text-faint);margin-top:4px">Alt: ${ex.alt}</div>
       </div>
     </div>
@@ -1683,13 +1856,76 @@ function showSaveToast(msg) {
 /* ═══════════════════════════════════════════════════════════════
    REST TIMER
 ═══════════════════════════════════════════════════════════════ */
+async function ensureTimerNotifyPermission() {
+  if (!('Notification' in window) || state.prefs?.timerNotify === false) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  try {
+    const r = await Notification.requestPermission();
+    return r === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+function cancelRestTimerAlerts() {
+  if (timerPageTimeout) {
+    clearTimeout(timerPageTimeout);
+    timerPageTimeout = null;
+  }
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.active?.postMessage({ type: 'TIMER_CANCEL' });
+    }).catch(() => {});
+  }
+}
+
+function fireRestTimerAlert() {
+  const title = 'Rest over — GO!';
+  const body = timerState.exercise
+    ? `${timerState.exercise}: start your next set`
+    : 'Start your next set';
+  if (state.prefs?.timerNotify === false) return;
+  if (document.visibilityState === 'visible' && document.hasFocus()) return;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, { body, tag: 'liftos-rest', renotify: true });
+    } catch { /* ignore */ }
+  }
+}
+
+function scheduleRestTimerAlerts() {
+  cancelRestTimerAlerts();
+  if (state.prefs?.timerNotify === false || timerState.remaining <= 0) return;
+  const ms = timerState.remaining * 1000;
+  timerPageTimeout = setTimeout(fireRestTimerAlert, ms);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.active?.postMessage({
+        type: 'TIMER_START',
+        endAt: Date.now() + ms,
+        title: 'Rest over — GO!',
+        body: timerState.exercise
+          ? `${timerState.exercise}: start your next set`
+          : 'Start your next set',
+      });
+    }).catch(() => {});
+  }
+}
+
 function startTimer(exName, duration) {
   if(timerState.interval) clearInterval(timerState.interval);
+  cancelRestTimerAlerts();
   timerState = { active:true, duration, remaining:duration, exercise:exName, interval:null };
   document.getElementById('timerOverlay').classList.add('active');
   document.getElementById('timerExercise').textContent = exName;
   updateTimerDisplay();
   timerState.interval = setInterval(tickTimer, 1000);
+  if (state.prefs?.timerNotify !== false) {
+    ensureTimerNotifyPermission().then((ok) => {
+      if (ok) scheduleRestTimerAlerts();
+    });
+  }
 }
 
 function tickTimer() {
@@ -1697,12 +1933,13 @@ function tickTimer() {
   updateTimerDisplay();
   if(timerState.remaining <= 0) {
     clearInterval(timerState.interval);
+    cancelRestTimerAlerts();
     document.getElementById('timerDisplay').className = 'timer-display done';
     document.getElementById('timerBar').className = 'timer-bar done';
     document.getElementById('timerBar').style.width = '100%';
     document.getElementById('timerDisplay').textContent = 'GO!';
-    // Vibrate if supported
     if (state.prefs?.timerVibrate !== false && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    fireRestTimerAlert();
     if (timerState.exercise) saveExerciseRest(timerState.exercise, timerState.duration);
     setTimeout(closeTimer, 2500);
   }
@@ -1728,6 +1965,7 @@ function updateTimerDisplay() {
 
 function closeTimer() {
   clearInterval(timerState.interval);
+  cancelRestTimerAlerts();
   timerState.active = false;
   document.getElementById('timerOverlay').classList.remove('active');
 }
@@ -1849,6 +2087,17 @@ function renderHistory(filter='all') {
     const pct = Math.min(100, Math.round(totalSets/maxPossible*100));
     const realIdx = state.sessions.indexOf(s);
     const tr = document.createElement('tr');
+    tr.className = 'history-row';
+    tr.setAttribute('role', 'button');
+    tr.setAttribute('tabindex', '0');
+    tr.setAttribute('aria-label', `View session ${s.date}, week ${s.week} ${s.day}`);
+    tr.onclick = () => openSessionModal(realIdx, false);
+    tr.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openSessionModal(realIdx, false);
+      }
+    };
     tr.innerHTML = `
       <td>${s.date}</td>
       <td><span class="badge badge-${s.day==='Mon'||s.day==='Thu'?'accent':'blue'}">${s.day}</span></td>
@@ -1861,20 +2110,7 @@ function renderHistory(filter='all') {
         </div>
         <span style="font-size:11px;color:var(--text-faint);margin-top:2px;display:block">${pct}%</span>
       </td>
-      <td style="display:flex;gap:6px;align-items:center">
-        <button class="btn btn-ghost btn-sm" onclick="openSessionModal(${realIdx},false)" title="View session detail">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          View
-        </button>
-        <button class="btn btn-ghost btn-sm" onclick="openSessionModal(${realIdx},true)" title="Edit this session">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Edit
-        </button>
-        <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteSession(${realIdx})" title="Delete workout">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-          Delete
-        </button>
-      </td>`;
+      <td class="history-chevron" aria-hidden="true">›</td>`;
     body.appendChild(tr);
   });
 }
@@ -2610,6 +2846,8 @@ function loadPrefs() {
   if (us) us.value = state.prefs.units || 'kg';
   const tv = document.getElementById('timerVibrate');
   if (tv) tv.checked = state.prefs.timerVibrate !== false;
+  const tn = document.getElementById('timerNotify');
+  if (tn) tn.checked = state.prefs.timerNotify !== false;
 }
 
 function savePrefs() {
@@ -2626,6 +2864,13 @@ function setWeightUnit(u) {
 function setTimerVibrate(on) {
   state.prefs.timerVibrate = on;
   savePrefs();
+}
+
+function setTimerNotify(on) {
+  state.prefs.timerNotify = on;
+  savePrefs();
+  if (on) ensureTimerNotifyPermission();
+  else cancelRestTimerAlerts();
 }
 
 function getExerciseRest(exName, defaultRest) {

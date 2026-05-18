@@ -1,4 +1,28 @@
-const CACHE = 'liftos-shell-v9';
+const CACHE = 'liftos-shell-v10';
+let restTimerTimeout = null;
+
+self.addEventListener('message', (e) => {
+  const data = e.data;
+  if (!data || typeof data !== 'object') return;
+  if (data.type === 'TIMER_CANCEL') {
+    if (restTimerTimeout) clearTimeout(restTimerTimeout);
+    restTimerTimeout = null;
+    return;
+  }
+  if (data.type === 'TIMER_START') {
+    if (restTimerTimeout) clearTimeout(restTimerTimeout);
+    const delay = Math.max(0, (data.endAt || 0) - Date.now());
+    if (delay <= 0) return;
+    restTimerTimeout = setTimeout(() => {
+      restTimerTimeout = null;
+      self.registration.showNotification(data.title || 'Rest over — GO!', {
+        body: data.body || 'Start your next set',
+        tag: 'liftos-rest',
+        renotify: true,
+      });
+    }, delay);
+  }
+});
 const SHELL = ['/', '/index.html', '/config.json', '/manifest.json', '/icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
