@@ -286,14 +286,24 @@ a{color:inherit;text-decoration:none}
 /* ── MOBILE / PWA ─────────────────────────────────────────────── */
 .mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:90}
 .menu-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--radius-md);background:var(--surface-2);border:1px solid var(--border)}
-.bottom-nav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:120;background:rgba(17,24,39,0.98);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));transform:translateZ(0);-webkit-transform:translateZ(0)}
-body.auth-locked .bottom-nav{display:none!important}
+.bottom-nav{display:none;flex-shrink:0;background:rgba(17,24,39,0.98);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:6px 4px 6px}
 .bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px;border-radius:var(--radius-md);color:var(--text-muted);font-size:10px;font-weight:600;min-height:52px;border:none;background:transparent}
 .bottom-nav-item svg{width:20px;height:20px}
 .bottom-nav-item.active{color:var(--accent);background:var(--accent-dim)}
 @media(max-width:768px){
-  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
-  .app-shell{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  html,body{min-height:100dvh;min-height:100svh;overflow-x:hidden;overscroll-behavior-y:none}
+  .app-shell{
+    display:flex;
+    flex-direction:column;
+    min-height:100dvh;
+    min-height:100svh;
+    height:100dvh;
+    height:100svh;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    overflow:hidden;
+  }
   .sidebar{
     transform:translateX(-100%);
     width:min(280px,88vw);
@@ -308,15 +318,23 @@ body.auth-locked .bottom-nav{display:none!important}
     width:100%;
     flex:1;
     min-height:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    min-height:unset;
+  }
+  .content{
+    flex:1;
+    min-height:0;
     overflow-x:hidden;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior-y:contain;
-    padding-bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom,0px) + 8px);
+    padding-bottom:16px;
   }
   .menu-btn{display:flex}
   .bottom-nav{display:flex}
-  .topbar{padding:0 12px;padding-top:env(safe-area-inset-top,0px);height:auto;min-height:52px;flex-wrap:wrap;gap:8px}
+  .topbar{padding:0 12px;padding-top:0;height:auto;min-height:52px;flex-shrink:0;flex-wrap:wrap;gap:8px}
   .topbar-title{font-size:12px}
   .topbar-actions{gap:6px;flex-wrap:wrap}
   .topbar-actions .btn-ghost{display:none}
@@ -337,11 +355,10 @@ body.auth-locked .bottom-nav{display:none!important}
   .content{padding:16px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
   .chart-wrap{max-width:100%;overflow:hidden}
   .history-table{font-size:12px}
-  .timer-overlay{left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom,0px));min-width:0}
+  .timer-overlay{left:12px;right:12px;bottom:calc(var(--bottom-nav-h) + env(safe-area-inset-bottom,0px) + 12px);min-width:0}
   .complete-summary-footer{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
 }
-@media(display-mode:standalone){
-  .topbar{padding-top:max(8px,env(safe-area-inset-top))}
+@media(display-mode:standalone) and (max-width:768px){
   .sidebar{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 }
 
@@ -434,7 +451,7 @@ body.auth-locked .bottom-nav{display:none!important}
 
 </style>
 </head>
-<body class="auth-locked">
+<body>
 
 <!-- LOGIN (Cognito) -->
 <div id="authGate" class="auth-gate">
@@ -821,10 +838,8 @@ body.auth-locked .bottom-nav{display:none!important}
   </div>
 </div>
 
-</div><!-- /appShell -->
-
-<nav class="bottom-nav" id="bottomNav" aria-label="Main navigation">
-  <button type="button" class="bottom-nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
+  <nav class="bottom-nav" id="bottomNav" aria-label="Main navigation">
+    <button type="button" class="bottom-nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     Home
   </button>
@@ -844,7 +859,9 @@ body.auth-locked .bottom-nav{display:none!important}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     More
   </button>
-</nav>
+  </nav>
+
+</div><!-- /appShell -->
 
 <!-- SESSION COMPLETE SUMMARY -->
 <div id="completeSummary" class="complete-summary" aria-hidden="true">
@@ -1205,8 +1222,8 @@ function showPage(name, navEl) {
   if(name==='dashboard') renderDashboard();
   if(name==='schedule') renderSchedule();
   closeSidebar();
-  const mainEl = document.querySelector('main.main');
-  if (mainEl) mainEl.scrollTop = 0;
+  const contentEl = document.querySelector('main.main .content');
+  if (contentEl) contentEl.scrollTop = 0;
 }
 
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); document.getElementById('mobileOverlay').classList.toggle('open'); }
@@ -2318,13 +2335,11 @@ async function ensureIdToken() {
 function showAuthGate() {
   document.getElementById('authGate')?.classList.remove('hidden');
   document.getElementById('appShell')?.classList.add('app-locked');
-  document.body.classList.add('auth-locked');
 }
 
 function hideAuthGate() {
   document.getElementById('authGate')?.classList.add('hidden');
   document.getElementById('appShell')?.classList.remove('app-locked');
-  document.body.classList.remove('auth-locked');
 }
 
 function signOut() {
