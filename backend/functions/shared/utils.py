@@ -5,8 +5,8 @@ import boto3
 from datetime import datetime, timezone
 
 TABLE_NAME = os.environ.get('TABLE_NAME', 'LiftingTracker')
-DATA_USER_PK = os.environ.get('DATA_USER_PK', 'USER#michael')
-DATA_PROGRESS_PK = os.environ.get('DATA_PROGRESS_PK', 'PROGRESS#michael')
+LEGACY_USER_PK = os.environ.get('LEGACY_USER_PK', 'USER#michael')
+LEGACY_PROGRESS_PK = os.environ.get('LEGACY_PROGRESS_PK', 'PROGRESS#michael')
 ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
@@ -27,13 +27,30 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+def get_user_sub(event):
+    claims = (event.get('requestContext') or {}).get('authorizer', {}).get('claims', {})
+    return claims.get('sub') or ''
+
+
 def get_user_pk(event):
-    """Single-user app: JWT required by API Gateway; data partition is fixed."""
-    return DATA_USER_PK
+    sub = get_user_sub(event)
+    if not sub:
+        return LEGACY_USER_PK
+    user_pk = f'USER#{sub}'
+    try:
+        from shared.migrate import maybe_migrate_user_data
+    except ImportError:
+        from migrate import maybe_migrate_user_data
+    progress_pk = f'PROGRESS#{sub}'
+    maybe_migrate_user_data(table, user_pk, progress_pk)
+    return user_pk
 
 
 def get_progress_pk(event):
-    return DATA_PROGRESS_PK
+    sub = get_user_sub(event)
+    if not sub:
+        return LEGACY_PROGRESS_PK
+    return f'PROGRESS#{sub}'
 
 
 def cors_origin(event):

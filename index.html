@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LiftOS — Michael's Training Hub</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/icon.svg">
+<meta name="theme-color" content="#ff5c35">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -304,6 +309,12 @@ a{color:inherit;text-decoration:none}
 .sync-status.connected .sync-dot{background:var(--success);box-shadow:0 0 8px rgba(34,197,94,0.5)}
 .sync-status.syncing .sync-dot{background:var(--warning);animation:pulse 1s ease infinite}
 .sync-status.offline .sync-dot{background:var(--warning)}
+.sync-status.local .sync-dot{background:var(--warning)}
+.sync-status.pending .sync-dot{background:var(--blue)}
+.sync-detail{font-size:10px;font-weight:400;color:var(--text-faint);line-height:1.3;max-width:140px}
+.auth-hint{font-size:11px;color:var(--text-faint);margin-top:4px;line-height:1.4}
+.auth-link{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;padding:0;margin-top:10px}
+.auth-link:hover{text-decoration:underline}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
 /* ═══ SESSION DETAIL MODAL ════════════════════════════════════════════════ */
@@ -380,6 +391,7 @@ a{color:inherit;text-decoration:none}
     <h1>LiftOS</h1>
     <p>Sign in to access your training data. This app is private — only your account can connect.</p>
     <form id="loginForm">
+      <div id="loginPanel">
       <div class="auth-field">
         <label for="loginEmail">Email</label>
         <input type="email" id="loginEmail" autocomplete="username" required>
@@ -391,14 +403,41 @@ a{color:inherit;text-decoration:none}
       <div id="newPasswordFields" class="hidden">
         <div class="auth-field">
           <label for="loginNewPassword">New password</label>
-          <input type="password" id="loginNewPassword" autocomplete="new-password" minlength="8">
+          <input type="password" id="loginNewPassword" autocomplete="new-password" minlength="12">
+          <p class="auth-hint" id="passwordHint"></p>
         </div>
         <div class="auth-field">
           <label for="loginNewPasswordConfirm">Confirm new password</label>
-          <input type="password" id="loginNewPasswordConfirm" autocomplete="new-password" minlength="8">
+          <input type="password" id="loginNewPasswordConfirm" autocomplete="new-password" minlength="12">
         </div>
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px" id="loginBtn">Sign in</button>
+      <button type="button" class="auth-link" id="forgotPasswordLink">Forgot password?</button>
+      </div>
+      <div id="resetPanel" class="hidden">
+        <p class="auth-hint" style="margin-bottom:12px">Enter your email and we will send a verification code.</p>
+        <div class="auth-field">
+          <label for="resetEmail">Email</label>
+          <input type="email" id="resetEmail" autocomplete="username">
+        </div>
+        <div id="resetCodeFields" class="hidden">
+          <div class="auth-field">
+            <label for="resetCode">Verification code</label>
+            <input type="text" id="resetCode" inputmode="numeric" autocomplete="one-time-code">
+          </div>
+          <div class="auth-field">
+            <label for="resetNewPassword">New password</label>
+            <input type="password" id="resetNewPassword" autocomplete="new-password" minlength="12">
+            <p class="auth-hint" id="resetPasswordHint"></p>
+          </div>
+          <div class="auth-field">
+            <label for="resetNewPasswordConfirm">Confirm new password</label>
+            <input type="password" id="resetNewPasswordConfirm" autocomplete="new-password" minlength="12">
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary" style="width:100%;margin-top:8px" id="resetBtn">Send reset code</button>
+        <button type="button" class="auth-link" id="backToLoginLink">Back to sign in</button>
+      </div>
       <div class="auth-error" id="loginError"></div>
     </form>
   </div>
@@ -444,6 +483,18 @@ a{color:inherit;text-decoration:none}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Weekly Schedule
     </div>
+    <div class="sidebar-section">Settings</div>
+    <div style="padding:4px 12px 12px">
+      <label class="text-xs text-muted" style="display:block;margin-bottom:4px">Weight units</label>
+      <select id="unitSelect" class="btn btn-ghost btn-sm" style="width:100%" onchange="setWeightUnit(this.value)">
+        <option value="kg">Kilograms (kg)</option>
+        <option value="lb">Pounds (lb)</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted);cursor:pointer">
+        <input type="checkbox" id="timerVibrate" onchange="setTimerVibrate(this.checked)">
+        Timer vibration
+      </label>
+    </div>
   </div>
 
   <div class="sidebar-bottom">
@@ -470,9 +521,16 @@ a{color:inherit;text-decoration:none}
     <div class="topbar-actions">
       <div id="syncStatus" class="sync-status offline" title="Cloud sync status">
         <span class="sync-dot"></span>
-        <span id="syncLabel">Loading…</span>
+        <div>
+          <span id="syncLabel">Loading…</span>
+          <div id="syncDetail" class="sync-detail"></div>
+        </div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="exportData()">
+      <button class="btn btn-ghost btn-sm" onclick="importData()" title="Import JSON backup">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="exportData()" title="Download JSON backup">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export
       </button>
@@ -732,6 +790,8 @@ a{color:inherit;text-decoration:none}
   </div>
 </div>
 
+<script src="/js/auth.js"></script>
+<script src="/js/sync.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
    DATA — FULL WORKOUT PROGRAM (Michael's 4-day plan)
@@ -1009,13 +1069,17 @@ const SCHEDULE_DAYS = [
 let state = {
   currentWeek: 1,
   currentDay: "Mon",
-  sessions: [],   // [{sessionId?, date, week, day, sets:[{exercise,weight,reps,rpe,e1rm}], completed}]
+  sessions: [],
   progressChart: null,
   dashVolumeChart: null,
   dashE1rmChart: null,
   planWeek: 1,
-  progressLift: "Bench Press"
+  progressLift: "Bench Press",
+  prefs: { units: 'kg', timerVibrate: true }
 };
+
+const REST_PREFS_KEY = 'liftos_rest_v1';
+const PREFS_KEY = 'liftos_prefs_v1';
 
 let API_BASE = '';
 let apiOnline = false;
@@ -1294,10 +1358,11 @@ function markSetDone(sid, exName, restSec) {
   const row = document.getElementById(sid);
   const btn = document.getElementById(sid+'-done');
   const isDone = btn.classList.contains('checked');
+  const rest = getExerciseRest(exName, restSec);
   if(!isDone) {
     btn.classList.add('checked');
     row.classList.add('done');
-    startTimer(exName, restSec);
+    startTimer(exName, rest);
     saveSetToState(sid, exName);
   } else {
     btn.classList.remove('checked');
@@ -1507,7 +1572,8 @@ function tickTimer() {
     document.getElementById('timerBar').style.width = '100%';
     document.getElementById('timerDisplay').textContent = 'GO!';
     // Vibrate if supported
-    if(navigator.vibrate) navigator.vibrate([200,100,200]);
+    if (state.prefs?.timerVibrate !== false && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    if (timerState.exercise) saveExerciseRest(timerState.exercise, timerState.duration);
     setTimeout(closeTimer, 2500);
   }
 }
@@ -1658,7 +1724,7 @@ function renderHistory(filter='all') {
       <td><span class="badge badge-${s.day==='Mon'||s.day==='Thu'?'accent':'blue'}">${s.day}</span></td>
       <td>Wk ${s.week}</td>
       <td>${totalSets} sets</td>
-      <td>${bestE1rm>0?bestE1rm+'kg':'—'}</td>
+      <td>${bestE1rm>0?displayWeight(bestE1rm)+weightUnitLabel():'—'}</td>
       <td>
         <div class="progress-bar-wrap">
           <div class="progress-bar-fill" style="width:${pct}%"></div>
@@ -2019,14 +2085,6 @@ function renderDashboard() {
 /* ═══════════════════════════════════════════════════════════════
    API — auto-configured via config.json
 ═══════════════════════════════════════════════════════════════ */
-function setSyncStatus(mode, label) {
-  const el = document.getElementById('syncStatus');
-  const lbl = document.getElementById('syncLabel');
-  if (!el || !lbl) return;
-  el.className = 'sync-status ' + mode;
-  lbl.textContent = label;
-}
-
 async function loadAppConfig() {
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
     API_BASE = 'http://localhost:3001';
@@ -2069,18 +2127,6 @@ function getIdToken() {
 
 let pendingAuthChallenge = null;
 
-async function cognitoIdpRequest(target, payload) {
-  const res = await fetch(`https://cognito-idp.${cognitoConfig.region}.amazonaws.com/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-amz-json-1.1',
-      'X-Amz-Target': target,
-    },
-    body: JSON.stringify(payload),
-  });
-  return res.json();
-}
-
 async function cognitoInitiateAuth(email, password) {
   if (!cognitoConfig?.clientId || !cognitoConfig?.region) {
     throw new Error('Auth not configured. Redeploy backend and refresh config.json.');
@@ -2108,6 +2154,8 @@ async function cognitoCompleteNewPassword(newPassword) {
   if (!pendingAuthChallenge?.session) {
     throw new Error('Start sign-in again, then set your new password.');
   }
+  const pwErr = validateCognitoPassword(newPassword);
+  if (pwErr) throw new Error(pwErr);
   const data = await cognitoIdpRequest(
     'AWSCognitoIdentityProviderService.RespondToAuthChallenge',
     {
@@ -2130,8 +2178,10 @@ async function cognitoCompleteNewPassword(newPassword) {
 function showNewPasswordChallenge() {
   document.getElementById('newPasswordFields')?.classList.remove('hidden');
   document.getElementById('loginBtn').textContent = 'Set password & sign in';
+  const hint = document.getElementById('passwordHint');
+  if (hint) hint.textContent = PASSWORD_HINT;
   document.getElementById('loginError').textContent =
-    'First sign-in: choose a new password below (8+ characters).';
+    'First sign-in: set a permanent password below.';
 }
 
 function hideNewPasswordChallenge() {
@@ -2219,7 +2269,8 @@ function persistLocalState() {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
       currentWeek: state.currentWeek,
       currentDay: state.currentDay,
-      sessions: state.sessions
+      sessions: state.sessions,
+      prefs: state.prefs,
     }));
   } catch (e) { console.warn('localStorage save failed', e); }
 }
@@ -2232,6 +2283,7 @@ function loadLocalState() {
     if (data.sessions) state.sessions = data.sessions;
     if (data.currentWeek) state.currentWeek = data.currentWeek;
     if (data.currentDay) state.currentDay = data.currentDay;
+    if (data.prefs) state.prefs = { ...state.prefs, ...data.prefs };
   } catch (e) { console.warn('localStorage load failed', e); }
 }
 
@@ -2311,71 +2363,249 @@ async function ensureApiSession() {
   return sid;
 }
 
+window._syncSetOp = async function (setData) {
+  const sid = await ensureApiSession();
+  await apiCall('POST', `/sessions/${sid}/sets`, {
+    exercise: setData.exercise,
+    setNumber: setData.setNumber || 1,
+    weightKg: setData.weight,
+    reps: setData.reps,
+    rpe: setData.rpe,
+    completed: true,
+    week: state.currentWeek,
+  });
+};
+
+window._syncSessionOp = async function (session, completed) {
+  const sid = session.sessionId || await ensureApiSession();
+  session.sessionId = sid;
+  const doneSets = session.sets.filter(x => x.weight > 0 || x.reps > 0);
+  await apiCall('POST', '/sessions', {
+    sessionId: sid,
+    week: session.week,
+    day: PROGRAM[session.day]?.label || session.day,
+    dayKey: DAY_KEY_MAP[session.day] || 'mon',
+    date: new Date().toISOString().slice(0, 10),
+    status: completed ? 'completed' : 'in_progress',
+    totalSets: doneSets.length,
+    completedSets: doneSets.length,
+  });
+};
+
 async function syncSetToApi(setData) {
-  if (!apiOnline || !setData.weight || !setData.reps) return;
+  if (!setData.weight || !setData.reps) return;
+  if (!apiOnline) {
+    enqueueSync({ type: 'set', payload: setData });
+    setSyncStatus('local', 'Local only');
+    return;
+  }
   try {
     setSyncStatus('syncing', 'Saving…');
-    const sid = await ensureApiSession();
-    await apiCall('POST', `/sessions/${sid}/sets`, {
-      exercise: setData.exercise,
-      setNumber: setData.setNumber || 1,
-      weightKg: setData.weight,
-      reps: setData.reps,
-      rpe: setData.rpe,
-      completed: true,
-      week: state.currentWeek
-    });
+    await window._syncSetOp(setData);
     setSyncStatus('connected', 'Synced');
   } catch (e) {
     console.warn('set sync failed', e);
-    setSyncStatus('offline', 'Offline');
+    enqueueSync({ type: 'set', payload: setData });
+    apiOnline = false;
+    setSyncStatus('local', 'Local only');
   }
 }
 
 async function syncSessionToApi(session, completed) {
-  if (!apiOnline) return;
+  if (!apiOnline) {
+    enqueueSync({ type: 'session', payload: session, completed });
+    setSyncStatus('local', 'Local only');
+    return;
+  }
   try {
     setSyncStatus('syncing', 'Saving…');
-    const sid = session.sessionId || await ensureApiSession();
-    session.sessionId = sid;
-    const doneSets = session.sets.filter(x => x.weight > 0 || x.reps > 0);
-    await apiCall('POST', '/sessions', {
-      sessionId: sid,
-      week: session.week,
-      day: PROGRAM[session.day]?.label || session.day,
-      dayKey: DAY_KEY_MAP[session.day] || 'mon',
-      date: new Date().toISOString().slice(0, 10),
-      status: completed ? 'completed' : 'in_progress',
-      totalSets: doneSets.length,
-      completedSets: doneSets.length
-    });
+    await window._syncSessionOp(session, completed);
     setSyncStatus('connected', 'Synced');
   } catch (e) {
     console.warn('session sync failed', e);
-    setSyncStatus('offline', 'Offline');
+    enqueueSync({ type: 'session', payload: session, completed });
+    apiOnline = false;
+    setSyncStatus('local', 'Local only');
   }
 }
 
 async function initApi() {
+  loadSyncQueue();
   setSyncStatus('syncing', 'Connecting…');
   try {
     await apiCall('GET', '/summary');
     apiOnline = true;
     await hydrateFromApi();
+    await flushSyncQueue();
     setSyncStatus('connected', 'Synced');
   } catch (e) {
     console.warn('API unavailable, using local cache', e);
     apiOnline = false;
     loadLocalState();
-    setSyncStatus('offline', 'Offline');
+    const msg = (e?.message || '').toLowerCase();
+    if (msg.includes('not signed in') || msg.includes('session expired')) {
+      setSyncStatus('offline', 'Sign in required');
+    } else if (msg.includes('401')) {
+      setSyncStatus('offline', 'Auth failed');
+    } else {
+      setSyncStatus('local', 'Local only');
+    }
   }
   apiReady = true;
+}
+
+function weightUnitLabel() { return state.prefs?.units === 'lb' ? 'lb' : 'kg'; }
+function displayWeight(kg) {
+  if (!kg && kg !== 0) return '—';
+  if (state.prefs?.units === 'lb') return (kg * 2.20462).toFixed(1);
+  return kg;
+}
+function toKg(displayVal) {
+  const v = parseFloat(displayVal);
+  if (!Number.isFinite(v)) return 0;
+  return state.prefs?.units === 'lb' ? Math.round((v / 2.20462) * 10) / 10 : v;
+}
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw) state.prefs = { ...state.prefs, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  const us = document.getElementById('unitSelect');
+  if (us) us.value = state.prefs.units || 'kg';
+  const tv = document.getElementById('timerVibrate');
+  if (tv) tv.checked = state.prefs.timerVibrate !== false;
+}
+
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(state.prefs)); } catch { /* ignore */ }
+}
+
+function setWeightUnit(u) {
+  state.prefs.units = u;
+  savePrefs();
+  renderLogPage();
+  renderHistory();
+}
+
+function setTimerVibrate(on) {
+  state.prefs.timerVibrate = on;
+  savePrefs();
+}
+
+function getExerciseRest(exName, defaultRest) {
+  try {
+    const prefs = JSON.parse(localStorage.getItem(REST_PREFS_KEY) || '{}');
+    return prefs[exName] ?? defaultRest;
+  } catch { return defaultRest; }
+}
+
+function saveExerciseRest(exName, seconds) {
+  try {
+    const prefs = JSON.parse(localStorage.getItem(REST_PREFS_KEY) || '{}');
+    prefs[exName] = seconds;
+    localStorage.setItem(REST_PREFS_KEY, JSON.stringify(prefs));
+  } catch { /* ignore */ }
+}
+
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const incoming = data.sessions || [];
+      if (!incoming.length) { alert('No sessions found in file.'); return; }
+      if (!confirm(`Import ${incoming.length} session(s)? This merges with your existing workouts.`)) return;
+      const ids = new Set(state.sessions.map(s => s.sessionId).filter(Boolean));
+      incoming.forEach(s => {
+        if (s.sessionId && ids.has(s.sessionId)) {
+          const idx = state.sessions.findIndex(x => x.sessionId === s.sessionId);
+          if (idx >= 0) state.sessions[idx] = s;
+        } else {
+          state.sessions.push(s);
+        }
+      });
+      if (data.currentWeek) state.currentWeek = data.currentWeek;
+      persistLocalState();
+      if (apiOnline) {
+        for (const s of state.sessions) {
+          if (s.completed) await syncSessionToApi(s, true);
+        }
+        await flushSyncQueue();
+      }
+      renderDashboard();
+      renderHistory();
+      renderLogPage();
+      showSaveToast('Import complete');
+    } catch (e) {
+      alert('Invalid JSON file: ' + e.message);
+    }
+  };
+  input.click();
+}
+
+let resetCodeSent = false;
+
+function showLoginPanel() {
+  document.getElementById('loginPanel')?.classList.remove('hidden');
+  document.getElementById('resetPanel')?.classList.add('hidden');
+  document.getElementById('loginEmail')?.closest('form')?.querySelector('#loginBtn')?.classList.remove('hidden');
+}
+
+function showResetPanel() {
+  const email = document.getElementById('loginEmail')?.value || '';
+  document.getElementById('resetEmail').value = email;
+  document.getElementById('loginPanel')?.classList.add('hidden');
+  document.getElementById('resetPanel')?.classList.remove('hidden');
+  resetCodeSent = false;
+  document.getElementById('resetCodeFields')?.classList.add('hidden');
+  document.getElementById('resetBtn').textContent = 'Send reset code';
+  const rh = document.getElementById('resetPasswordHint');
+  if (rh) rh.textContent = PASSWORD_HINT;
+}
+
+async function handleResetPassword() {
+  const errEl = document.getElementById('loginError');
+  const email = document.getElementById('resetEmail').value.trim();
+  errEl.textContent = '';
+  if (!email) { errEl.textContent = 'Enter your email.'; return; }
+  const btn = document.getElementById('resetBtn');
+  btn.disabled = true;
+  try {
+    if (!resetCodeSent) {
+      await cognitoForgotPassword(email);
+      resetCodeSent = true;
+      document.getElementById('resetCodeFields')?.classList.remove('hidden');
+      btn.textContent = 'Reset password';
+      errEl.textContent = 'Check your email for the verification code.';
+      errEl.style.color = 'var(--success)';
+    } else {
+      const code = document.getElementById('resetCode').value;
+      const np = document.getElementById('resetNewPassword').value;
+      const npc = document.getElementById('resetNewPasswordConfirm').value;
+      if (np !== npc) throw new Error('Passwords do not match.');
+      await cognitoConfirmForgotPassword(email, code, np);
+      errEl.style.color = '';
+      alert('Password updated. Sign in with your new password.');
+      showLoginPanel();
+    }
+  } catch (e) {
+    errEl.style.color = '';
+    errEl.textContent = e.message || 'Reset failed';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function bootApp() {
   const dayMap = { 1: 'Mon', 2: 'Tue', 4: 'Thu', 5: 'Fri' };
   const todayNum = new Date().getDay();
   if (dayMap[todayNum]) state.currentDay = dayMap[todayNum];
+  loadPrefs();
   loadLocalState();
   renderDashboard();
   renderSchedule();
@@ -2401,7 +2631,8 @@ async function handleLogin(e) {
     if (inChallenge) {
       const np = document.getElementById('loginNewPassword').value;
       const npc = document.getElementById('loginNewPasswordConfirm').value;
-      if (np.length < 8) throw new Error('New password must be at least 8 characters.');
+      const pwErr = validateCognitoPassword(np);
+      if (pwErr) throw new Error(pwErr);
       if (np !== npc) throw new Error('New passwords do not match.');
       const tokens = await cognitoCompleteNewPassword(np);
       saveAuthTokens(tokens);
@@ -2428,7 +2659,7 @@ async function handleLogin(e) {
 }
 
 function exportData() {
-  const data={exportedAt:new Date().toISOString(),currentWeek:state.currentWeek,sessions:state.sessions};
+  const data={exportedAt:new Date().toISOString(),currentWeek:state.currentWeek,sessions:state.sessions,prefs:state.prefs};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -2440,7 +2671,27 @@ function exportData() {
    INIT
 ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
+  const ph = document.getElementById('passwordHint');
+  if (ph) ph.textContent = PASSWORD_HINT;
+  const rh = document.getElementById('resetPasswordHint');
+  if (rh) rh.textContent = PASSWORD_HINT;
   document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
+  document.getElementById('forgotPasswordLink')?.addEventListener('click', showResetPanel);
+  document.getElementById('backToLoginLink')?.addEventListener('click', showLoginPanel);
+  document.getElementById('resetBtn')?.addEventListener('click', handleResetPassword);
+  loadPrefs();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  window.addEventListener('online', async () => {
+    if (!getIdToken()) return;
+    try {
+      await apiCall('GET', '/summary');
+      apiOnline = true;
+      await flushSyncQueue();
+      setSyncStatus('connected', 'Synced');
+    } catch { /* still offline */ }
+  });
   await loadAppConfig();
   const stored = loadAuthTokens();
   if (stored?.idToken) {

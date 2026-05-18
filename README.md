@@ -2,45 +2,53 @@
 
 Personal lifting tracker — **https://www.liftos.net**
 
-Static SPA (`index.html` + `config.json`) on Amplify · API Gateway + Lambda + DynamoDB + Cognito in `ap-southeast-2` · GitHub `MishaGarbuz/liftos`
+Static SPA + API Gateway + Lambda + DynamoDB + Cognito (`ap-southeast-2`) · GitHub `MishaGarbuz/liftos`
 
 ## Prerequisites
 
 - [AWS CLI](https://aws.amazon.com/cli/) configured for `ap-southeast-2`
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) (`brew install aws-sam-cli`)
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 
 ## Deploy
 
-**Backend** (API + Cognito + DynamoDB):
+**Backend:**
 
 ```bash
 cd backend
 ./deploy.sh
+# Optional alarms email:
+sam deploy --template-file packaged.yaml --stack-name lifting-tracker \
+  --capabilities CAPABILITY_IAM --region ap-southeast-2 \
+  --parameter-overrides AlertEmail=you@example.com
 ```
 
-Commit the updated `config.json` at the repo root, then push to `main`.
+Commit updated `config.json`, then push to `main` for Amplify (~1 min).
 
-**Frontend** — push to `main`; Amplify builds from `amplify.yml` (~1 min).
-
-## First login (once per environment)
+**First login (once):**
 
 ```bash
 cd backend
-./create-user.sh your@email.com 'YourSecurePass123!'
+./create-user.sh your@email.com 'YourSecurePass12!Symbol'
 ```
 
-Password must match the pool policy (12+ characters, upper, lower, number, symbol). Sign in at https://www.liftos.net.
+Password: 12+ chars, upper, lower, number, symbol. Pool is admin-create only (no public sign-up).
 
-If sign-in fails with `FORCE_CHANGE_PASSWORD`, re-run the same command (the script disables the AWS CLI pager so the password step always runs).
+Sign in at https://www.liftos.net · use **Forgot password** on the login screen if needed.
 
 ## Local API (optional)
 
 ```bash
-cd backend
-sam build && sam local start-api --port 3001
+cd backend && sam build && sam local start-api --port 3001
 ```
 
-Serve `index.html` locally (e.g. Live Server on port 5500). The app uses `http://localhost:3001` when the hostname is `localhost` / `127.0.0.1`; production still requires Cognito sign-in.
+Serve `index.html` on localhost; app uses `http://localhost:3001` automatically.
+
+## Features
+
+- PWA: install via browser “Add to Home Screen” (`manifest.json` + service worker)
+- Cloud sync with offline queue; import/export JSON backups
+- Per-user DynamoDB partition (JWT `sub`); legacy `USER#michael` data migrates on first login
+- Cognito forgot-password flow on login screen
 
 ## Teardown
 

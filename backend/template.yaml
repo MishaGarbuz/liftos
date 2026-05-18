@@ -6,6 +6,13 @@ Parameters:
   AllowedOrigins:
     Type: String
     Default: 'https://www.liftos.net,https://liftos.net,http://localhost:5500,http://127.0.0.1:5500'
+  AlertEmail:
+    Type: String
+    Description: Email for CloudWatch alarm notifications (optional)
+    Default: ''
+
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, '']]
 
 Globals:
   Function:
@@ -15,8 +22,8 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: !Ref LiftingTrackerTable
-        DATA_USER_PK: USER#michael
-        DATA_PROGRESS_PK: PROGRESS#michael
+        LEGACY_USER_PK: USER#michael
+        LEGACY_PROGRESS_PK: PROGRESS#michael
         ALLOWED_ORIGINS: !Ref AllowedOrigins
 
 Resources:
@@ -25,10 +32,16 @@ Resources:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: liftos-users
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
       UsernameAttributes:
         - email
       AutoVerifiedAttributes:
         - email
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
       Policies:
         PasswordPolicy:
           MinimumLength: 12
@@ -123,14 +136,14 @@ Resources:
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization'"
-        AllowOrigin: "'https://www.liftos.net'"
+        AllowOrigin: "'https://www.liftos.net,https://liftos.net'"
 
   SessionsFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: LiftingTracker-Sessions
-      CodeUri: functions/sessions/
-      Handler: handler.lambda_handler
+      CodeUri: functions/
+      Handler: sessions/handler.lambda_handler
       Role: !GetAtt LambdaRole.Arn
       Events:
         GetSessions:
@@ -178,8 +191,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: LiftingTracker-Sets
-      CodeUri: functions/sets/
-      Handler: handler.lambda_handler
+      CodeUri: functions/
+      Handler: sets/handler.lambda_handler
       Role: !GetAtt LambdaRole.Arn
       Events:
         PostSet:
@@ -207,8 +220,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: LiftingTracker-Progress
-      CodeUri: functions/progress/
-      Handler: handler.lambda_handler
+      CodeUri: functions/
+      Handler: progress/handler.lambda_handler
       Role: !GetAtt LambdaRole.Arn
       Events:
         GetProgress:
@@ -244,8 +257,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: LiftingTracker-Summary
-      CodeUri: functions/summary/
-      Handler: handler.lambda_handler
+      CodeUri: functions/
+      Handler: summary/handler.lambda_handler
       Role: !GetAtt LambdaRole.Arn
       Events:
         GetSummary:
@@ -262,6 +275,59 @@ Resources:
             Method: OPTIONS
             Auth:
               Authorizer: NONE
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasAlertEmail
+    Properties:
+      TopicName: liftos-alerts
+
+  AlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlertEmail
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  SessionsErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlertEmail
+    Properties:
+      AlarmName: LiftOS-Sessions-Lambda-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: LiftingTracker-Sessions
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
+
+  DynamoThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlertEmail
+    Properties:
+      AlarmName: LiftOS-DynamoDB-Throttles
+      AlarmDescription: DynamoDB throttled requests
+      Namespace: AWS/DynamoDB
+      MetricName: ThrottledRequests
+      Dimensions:
+        - Name: TableName
+          Value: !Ref LiftingTrackerTable
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
 
 Outputs:
   ApiUrl:
