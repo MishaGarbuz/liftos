@@ -2,6 +2,8 @@
 # Create your single LiftOS login (run once after deploy)
 set -e
 
+export AWS_PAGER=""
+
 REGION="${AWS_DEFAULT_REGION:-ap-southeast-2}"
 STACK_NAME="${STACK_NAME:-lifting-tracker}"
 
@@ -32,8 +34,10 @@ aws cognito-idp admin-create-user \
   --username "$EMAIL" \
   --user-attributes Name=email,Value="$EMAIL" Name=email_verified,Value=true \
   --message-action SUPPRESS \
-  --region "$REGION" 2>/dev/null || true
+  --region "$REGION" \
+  --output text >/dev/null 2>&1 || true
 
+echo "Setting permanent password ..."
 aws cognito-idp admin-set-user-password \
   --user-pool-id "$POOL_ID" \
   --username "$EMAIL" \
@@ -41,4 +45,17 @@ aws cognito-idp admin-set-user-password \
   --permanent \
   --region "$REGION"
 
-echo "Done. Sign in at https://www.liftos.net with that email and password."
+STATUS=$(aws cognito-idp admin-get-user \
+  --user-pool-id "$POOL_ID" \
+  --username "$EMAIL" \
+  --region "$REGION" \
+  --query UserStatus \
+  --output text)
+
+if [[ "$STATUS" != "CONFIRMED" ]]; then
+  echo "Warning: user status is $STATUS (expected CONFIRMED)."
+  echo "Re-run this script with the same email and password, or set password in AWS Console."
+  exit 1
+fi
+
+echo "Done ($STATUS). Sign in at https://www.liftos.net with that email and password."
