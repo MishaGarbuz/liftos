@@ -74,7 +74,14 @@ The frontend auto-deploys on every push to **`main`** via [AWS Amplify](https://
 
 **Workflow:** edit `index.html` or `config.json` → `git push origin main` → Amplify builds and deploys (~1 min).
 
-**Custom domains:** add **liftos.app** in Amplify → Domain management (DNS at your registrar). `liftos.net` is also configured on this app.
+**Custom domains** (configure at your registrar):
+
+| Domain | Record | Value |
+|--------|--------|--------|
+| `liftos.app` (apex) | CNAME or ALIAS | `drqwm1ecp3jfm.cloudfront.net` |
+| `www.liftos.app` | CNAME | `drqwm1ecp3jfm.cloudfront.net` |
+
+`liftos.net` / `www.liftos.net` also point to this app (branch `main`). Check Amplify → Domain management for live DNS values if these change.
 
 **Backend:** run `cd backend && ./deploy.sh` locally after API changes; commit the updated `config.json` and push so the frontend picks up the new URL.
 
