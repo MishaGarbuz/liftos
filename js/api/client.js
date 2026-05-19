@@ -377,15 +377,34 @@ async function initApi() {
 }
 
 function weightUnitLabel() { return state.prefs?.units === 'lb' ? 'lb' : 'kg'; }
+function weightColumnLabel() { return `Weight (${weightUnitLabel()})`; }
 function displayWeight(kg) {
   if (!kg && kg !== 0) return '—';
   if (state.prefs?.units === 'lb') return (kg * 2.20462).toFixed(1);
   return kg;
 }
+function formatWeightWithUnit(kg) {
+  if (!kg && kg !== 0) return '—';
+  const w = displayWeight(kg);
+  return w === '—' ? w : `${w}${weightUnitLabel()}`;
+}
+function formatSessionVolume(doneSets) {
+  const total = doneSets.reduce((a, x) => {
+    const w = x.weight || 0;
+    const r = x.reps || 0;
+    const displayW = state.prefs?.units === 'lb' ? w * 2.20462 : w;
+    return a + displayW * r;
+  }, 0);
+  return `${Math.round(total).toLocaleString()} ${weightUnitLabel()}`;
+}
 function toKg(displayVal) {
   const v = parseFloat(displayVal);
   if (!Number.isFinite(v)) return 0;
   return state.prefs?.units === 'lb' ? Math.round((v / 2.20462) * 10) / 10 : v;
+}
+function toDisplayUnit(kg) {
+  if (kg == null || !Number.isFinite(kg)) return null;
+  return state.prefs?.units === 'lb' ? Math.round(kg * 2.20462 * 10) / 10 : kg;
 }
 
 function loadPrefs() {
@@ -410,6 +429,8 @@ function setWeightUnit(u) {
   savePrefs();
   renderLogPage();
   renderHistory();
+  renderDashboard();
+  renderProgressPage();
 }
 
 function setTimerVibrate(on) {

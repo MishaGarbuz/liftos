@@ -165,10 +165,6 @@
           <div id="syncDetail" class="sync-detail"></div>
         </div>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm topbar-plates" onclick="openPlateCalculator()" title="Plates Calculator">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
-        <span class="topbar-plates-label">Plates Calculator</span>
-      </button>
       <button class="btn btn-ghost btn-sm" onclick="importData()" title="Import JSON backup">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Import
@@ -223,7 +219,7 @@
               <div class="card-title-lg">Today's Session</div>
               <div class="text-muted text-sm mt-4" id="todaySessionLabel">Loading...</div>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="showPage('log',null)">Start</button>
+            <button class="btn btn-primary btn-sm" id="startTodayBtn" onclick="startTodaysWorkout()">Start today's workout</button>
           </div>
           <div class="week-dots" id="weekDots"></div>
         </div>
@@ -256,7 +252,6 @@
           <div class="section-sub">Track every set with weight, reps and RPE</div>
         </div>
         <button type="button" class="btn btn-ghost btn-sm log-plates-btn" onclick="openPlateCalculator()" title="Plates Calculator — target weight to bar + plates">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
           Plates Calculator
         </button>
       </div>

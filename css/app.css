@@ -184,6 +184,14 @@ a{color:inherit;text-decoration:none}
 .set-row-btn.add-set-btn:hover{color:var(--accent)}
 .set-row-btn.remove-set-btn:hover{color:var(--warning)}
 .set-row-btn.remove-set-btn:disabled{opacity:0.35;pointer-events:none}
+.set-weight-cell{padding:4px 6px!important}
+.set-weight-wrap{display:flex;align-items:center;gap:4px}
+.set-weight-input{width:64px;min-width:0;flex:1}
+.set-plate-btn,.set-copy-btn{flex-shrink:0;width:28px;height:28px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+.set-plate-btn:hover{color:var(--accent);border-color:var(--accent)}
+.set-copy-btn:hover{color:var(--warning);border-color:var(--warning)}
+.set-actions-cell{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.sets-table .set-input{max-width:100%}
 
 /* ── STANDALONE EXERCISE ──────────────────────────────────────── */
 .standalone-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:14px;overflow:hidden}
@@ -291,7 +299,16 @@ body.auth-locked .bottom-nav{display:none!important}
 .bottom-nav-item svg{width:20px;height:20px}
 .bottom-nav-item.active{color:var(--accent);background:var(--accent-dim)}
 @media(max-width:768px){
-  html,body{height:var(--app-height);max-height:var(--app-height);overflow:hidden;overscroll-behavior:none;background:var(--bg)}
+  /* 16px+ prevents iOS Safari/PWA from auto-zooming focused inputs */
+  input:not([type=checkbox]):not([type=radio]),
+  select,
+  textarea,
+  .set-input{
+    font-size:16px!important;
+  }
+  html,body{height:var(--app-height);max-height:var(--app-height);overflow:hidden;overscroll-behavior:none;background:var(--bg);touch-action:manipulation}
+  html.keyboard-open .app-shell,
+  html.keyboard-open .main{height:var(--app-height);min-height:var(--app-height)}
   .app-shell{
     position:fixed;
     top:0;
@@ -351,7 +368,6 @@ body.auth-locked .bottom-nav{display:none!important}
   .topbar-title{font-size:12px}
   .topbar-actions{gap:6px;flex-wrap:wrap}
   .topbar-actions .btn-ghost{display:none}
-  .topbar-actions .btn-ghost.topbar-plates{display:inline-flex}
   .topbar-actions .btn-primary.btn-sm{display:none}
   .sync-detail{display:none}
   .sync-status{padding:5px 8px;font-size:10px}
@@ -535,10 +551,7 @@ html.ios-pwa .complete-summary-footer{padding-bottom:calc(16px + var(--safe-bott
 #plateCalcModal .modal-body{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 @media(max-width:768px){
   .plate-calc-fields{grid-template-columns:1fr}
-  .topbar-plates-label{display:none}
   .log-plates-btn{font-size:11px;padding:6px 10px}
-}
-@media(min-width:769px){
-  .topbar-plates .topbar-plates-label{display:inline}
+  #startTodayBtn{font-size:11px;padding:6px 10px;white-space:normal;line-height:1.25;text-align:center}
 }
 

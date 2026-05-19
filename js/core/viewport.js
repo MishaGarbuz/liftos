@@ -27,13 +27,23 @@ function measureSafeBottom() {
   return fromEnv;
 }
 
+function isMobileLayout() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
 function syncMobileViewport() {
-  const h = Math.round(window.visualViewport?.height ?? window.innerHeight);
+  const innerH = window.innerHeight;
+  const vv = window.visualViewport;
+  const visualH = vv?.height ?? innerH;
+  // iOS shrinks visualViewport when the keyboard opens — don't collapse the fixed shell
+  const keyboardOpen = document.documentElement.classList.contains('keyboard-open');
+  const keyboardLikely = vv && visualH < innerH * 0.82;
+  const h = keyboardOpen || keyboardLikely ? innerH : Math.round(visualH);
   document.documentElement.style.setProperty('--app-height', `${h}px`);
   document.documentElement.style.setProperty('--vh', `${h * 0.01}px`);
   document.documentElement.style.setProperty('--safe-bottom', `${measureSafeBottom()}px`);
   const nav = document.getElementById('bottomNav');
-  if (nav && window.matchMedia('(max-width: 768px)').matches) {
+  if (nav && isMobileLayout()) {
     document.documentElement.style.setProperty('--bottom-nav-total', `${nav.offsetHeight}px`);
   }
   const logActions = document.getElementById('logSessionActions');
@@ -42,9 +52,38 @@ function syncMobileViewport() {
   }
 }
 
+function scrollFieldIntoView(el) {
+  if (!el || !isMobileLayout()) return;
+  requestAnimationFrame(() => {
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+}
+
+function bindKeyboardViewportFix() {
+  const onFocusIn = (e) => {
+    const t = e.target;
+    if (!t?.matches?.('input, textarea, select')) return;
+    document.documentElement.classList.add('keyboard-open');
+    document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    scrollFieldIntoView(t);
+  };
+  const onFocusOut = () => {
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (active?.matches?.('input, textarea, select')) return;
+      document.documentElement.classList.remove('keyboard-open');
+      syncMobileViewport();
+      if (isMobileLayout()) window.scrollTo(0, 0);
+    }, 120);
+  };
+  document.addEventListener('focusin', onFocusIn);
+  document.addEventListener('focusout', onFocusOut);
+}
+
 function bindMobileViewport() {
   detectPwaEnv();
   syncMobileViewport();
+  bindKeyboardViewportFix();
   window.addEventListener('resize', syncMobileViewport, { passive: true });
   window.addEventListener('orientationchange', () => setTimeout(syncMobileViewport, 100), { passive: true });
   window.visualViewport?.addEventListener('resize', syncMobileViewport, { passive: true });

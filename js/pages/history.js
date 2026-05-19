@@ -82,11 +82,11 @@ function openSessionModal(idx, editMode) {
         <div class="modal-kpi-lbl">Sets Logged</div>
       </div>
       <div class="modal-kpi">
-        <div class="modal-kpi-val">${bestE1rm > 0 ? bestE1rm+'kg' : '—'}</div>
+        <div class="modal-kpi-val">${bestE1rm > 0 ? formatWeightWithUnit(bestE1rm) : '—'}</div>
         <div class="modal-kpi-lbl">Best E1RM${topLift?' · '+topLift.exercise:''}</div>
       </div>
       <div class="modal-kpi">
-        <div class="modal-kpi-val">${totalVol > 0 ? Math.round(totalVol)+'kg' : '—'}</div>
+        <div class="modal-kpi-val">${totalVol > 0 ? formatSessionVolume(doneSets) : '—'}</div>
         <div class="modal-kpi-lbl">Total Volume</div>
       </div>
     </div>`;
@@ -108,7 +108,7 @@ function openSessionModal(idx, editMode) {
     </div>
     <table class="modal-sets-table">
       <thead><tr>
-        <th>Set</th><th>Weight (kg)</th><th>Reps</th><th>RPE</th><th>E1RM</th>${editMode?'<th></th>':''}
+        <th>Set</th><th>${weightColumnLabel()}</th><th>Reps</th><th>RPE</th><th>E1RM</th>${editMode?'<th></th>':''}
       </tr></thead>
       <tbody id="modal-ex-${CSS.escape(exName)}"></tbody>
     </table>
@@ -121,20 +121,20 @@ function openSessionModal(idx, editMode) {
       if(editMode){
         tr.innerHTML = `
           <td style="color:var(--text-faint)">${si+1}</td>
-          <td><input type="number" value="${set.weight||''}" placeholder="0" min="0" step="0.5" data-field="weight" data-orig="${set._origIdx}" class="modal-edit-input" onchange="updateSessionSet(${idx},${set._origIdx},this)"></td>
+          <td><input type="number" value="${set.weight ? displayWeight(set.weight) : ''}" placeholder="0" min="0" step="0.5" data-field="weight" data-orig="${set._origIdx}" class="modal-edit-input" onchange="updateSessionSet(${idx},${set._origIdx},this)"></td>
           <td><input type="number" value="${set.reps||''}" placeholder="0" min="0" data-field="reps" data-orig="${set._origIdx}" class="modal-edit-input" onchange="updateSessionSet(${idx},${set._origIdx},this)"></td>
           <td><input type="number" value="${set.rpe||''}" placeholder="7" min="1" max="10" step="0.5" data-field="rpe" data-orig="${set._origIdx}" class="modal-edit-input" onchange="updateSessionSet(${idx},${set._origIdx},this)"></td>
-          <td style="color:var(--text-faint)">${set.e1rm>0?set.e1rm+'kg':'—'}</td>
+          <td style="color:var(--text-faint)">${set.e1rm>0?formatWeightWithUnit(set.e1rm):'—'}</td>
           <td><button class="set-del-btn" onclick="deleteSessionSet(${idx},${set._origIdx})" title="Remove set">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
           </button></td>`;
       } else {
         tr.innerHTML = `
           <td style="color:var(--text-faint)">${si+1}</td>
-          <td>${set.weight||'—'}${set.weight?'kg':''}</td>
+          <td>${set.weight?formatWeightWithUnit(set.weight):'—'}</td>
           <td>${set.reps||'—'}</td>
           <td>${set.rpe||'—'}</td>
-          <td style="color:${set.e1rm>0?'var(--accent)':'var(--text-faint)'}">${set.e1rm>0?set.e1rm+'kg':'—'}</td>`;
+          <td style="color:${set.e1rm>0?'var(--accent)':'var(--text-faint)'}">${set.e1rm>0?formatWeightWithUnit(set.e1rm):'—'}</td>`;
       }
       tbody.appendChild(tr);
     });
@@ -171,7 +171,8 @@ function updateSessionSet(sessionIdx, setOrigIdx, input) {
   const s = state.sessions[sessionIdx];
   if(!s || !s.sets[setOrigIdx]) return;
   const field = input.dataset.field;
-  const val = parseFloat(input.value) || 0;
+  let val = parseFloat(input.value) || 0;
+  if (field === 'weight') val = toKg(val);
   s.sets[setOrigIdx][field] = val;
   // Recalculate E1RM
   const set = s.sets[setOrigIdx];

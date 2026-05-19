@@ -13,7 +13,7 @@ async function renderProgressPage() {
     c.onclick = ()=>{ state.progressLift=k; renderProgressPage(); };
     chips.appendChild(c);
   });
-  document.getElementById('progressChartTitle').textContent = state.progressLift+' — E1RM (kg)';
+  document.getElementById('progressChartTitle').textContent = `${state.progressLift} — E1RM (${weightUnitLabel()})`;
 
   const targets = LIFT_TARGETS[state.progressLift];
   const actuals = Array(12).fill(null);
@@ -50,11 +50,11 @@ async function renderProgressPage() {
     data:{
       labels,
       datasets:[
-        { label:'Target E1RM', data:targets, borderColor:'rgba(255,92,53,0.5)', backgroundColor:'rgba(255,92,53,0.05)', borderDash:[4,3], borderWidth:2, pointRadius:3, tension:0.4 },
-        { label:'Actual E1RM', data:actuals, borderColor:'#ff5c35', backgroundColor:'rgba(255,92,53,0.12)', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#ff5c35', tension:0.4 }
+        { label:'Target E1RM', data:targets.map(toDisplayUnit), borderColor:'rgba(255,92,53,0.5)', backgroundColor:'rgba(255,92,53,0.05)', borderDash:[4,3], borderWidth:2, pointRadius:3, tension:0.4 },
+        { label:'Actual E1RM', data:actuals.map(toDisplayUnit), borderColor:'#ff5c35', backgroundColor:'rgba(255,92,53,0.12)', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#ff5c35', tension:0.4 }
       ]
     },
-    options: chartOptions('kg')
+    options: chartOptions(weightUnitLabel())
   });
 
   // Sparklines
@@ -69,8 +69,8 @@ async function renderProgressPage() {
     card.className = 'sparkline-card';
     card.innerHTML = `
       <div class="sparkline-label">${k}</div>
-      <div class="sparkline-val">${latest}kg</div>
-      <div class="sparkline-delta ${delta>0?'up':delta<0?'down':'flat'}">${delta>0?'+':''}${delta.toFixed(1)}kg wk-on-wk</div>
+      <div class="sparkline-val">${displayWeight(latest)}${weightUnitLabel()}</div>
+      <div class="sparkline-delta ${delta>0?'up':delta<0?'down':'flat'}">${delta>0?'+':''}${(state.prefs?.units==='lb'?delta*2.20462:delta).toFixed(1)}${weightUnitLabel()} wk-on-wk</div>
       <div class="sparkline-chart"><canvas id="spark-${k.replace(/\s+/g,'')}"></canvas></div>`;
     sg.appendChild(card);
     setTimeout(()=>{

@@ -12,7 +12,7 @@ function renderDashboard() {
   completed.forEach(s=>s.sets.forEach(set=>{
     if((set.e1rm||0)>bestE1rm){ bestE1rm=set.e1rm; bestLift=set.exercise||'bench press'; }
   }));
-  document.getElementById('kpiE1rm').textContent=bestE1rm>0?bestE1rm+'kg':'—';
+  document.getElementById('kpiE1rm').textContent=bestE1rm>0?formatWeightWithUnit(bestE1rm):'—';
   document.getElementById('kpiE1rmLabel').textContent=bestLift.toLowerCase();
 
   // Weekly sets
@@ -30,6 +30,16 @@ function renderDashboard() {
   const todayKey=dayMap[new Date().getDay()];
   const todayProgram=PROGRAM[todayKey];
   document.getElementById('todaySessionLabel').textContent=todayProgram?todayProgram.label+' — '+todayProgram.focus:'Rest day — recover well.';
+  const startBtn = document.getElementById('startTodayBtn');
+  if (startBtn) {
+    if (todayProgram) {
+      startBtn.textContent = "Start today's workout";
+      startBtn.disabled = false;
+    } else {
+      startBtn.textContent = 'Rest day';
+      startBtn.disabled = true;
+    }
+  }
 
   // Week dots
   const dots=document.getElementById('weekDots');
@@ -76,10 +86,20 @@ function renderDashboard() {
     data:{
       labels:Array.from({length:12},(_,i)=>'W'+(i+1)),
       datasets:[
-        {label:'Target',data:LIFT_TARGETS['Bench Press'],borderColor:'rgba(255,92,53,0.35)',borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
-        {label:'Actual',data:e1rmActual,borderColor:'#ff5c35',backgroundColor:'rgba(255,92,53,0.1)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#ff5c35',tension:0.4,fill:true}
+        {label:'Target',data:LIFT_TARGETS['Bench Press'].map(toDisplayUnit),borderColor:'rgba(255,92,53,0.35)',borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
+        {label:'Actual',data:e1rmActual.map(toDisplayUnit),borderColor:'#ff5c35',backgroundColor:'rgba(255,92,53,0.1)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#ff5c35',tension:0.4,fill:true}
       ]
     },
-    options:chartOptions('kg')
+    options:chartOptions(weightUnitLabel())
   });
+}
+
+function startTodaysWorkout() {
+  const dayMap = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
+  const today = dayMap[new Date().getDay()];
+  if (DAYS.includes(today)) state.currentDay = today;
+  const logNav =
+    document.querySelector('.bottom-nav-item[data-page="log"]') ||
+    document.querySelector('.nav-item[data-page="log"]');
+  showPage('log', logNav);
 }

@@ -28,10 +28,57 @@ function getLastSetsForExercise(exerciseName, day) {
 
 function formatLastTimeSummary(sets) {
   return sets.map(s => {
-    const w = displayWeight(s.weight);
+    const w = formatWeightWithUnit(s.weight);
     const rpe = s.rpe ? ` @${s.rpe}` : '';
-    return `${w}${weightUnitLabel()}×${s.reps}${rpe}`;
+    return `${w}×${s.reps}${rpe}`;
   }).join(' · ');
+}
+
+function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
+  const wPlaceholder = displayWeight(targetW);
+  const repsPh = ex.repsTarget.split('–')[0];
+  const copyBtn = showCopy
+    ? `<button type="button" class="set-copy-btn" onclick="copyPreviousSet('${sid}')" title="Copy previous set" aria-label="Copy previous set">↑</button>`
+    : '';
+  return `
+      <td class="set-num">${setNum}</td>
+      <td class="set-weight-cell">
+        <div class="set-weight-wrap">
+          <input type="number" class="set-input set-weight-input" id="${sid}-w" placeholder="${wPlaceholder}" min="0" step="0.5" inputmode="decimal">
+          <button type="button" class="set-plate-btn" onclick="openPlatesFromWeight('${sid}')" title="Plates Calculator" aria-label="Plates Calculator">⊕</button>
+        </div>
+      </td>
+      <td><input type="number" class="set-input" id="${sid}-r" placeholder="${repsPh}" min="0" inputmode="numeric"></td>
+      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal"></td>
+      <td><span class="badge badge-muted" style="font-size:10px">${ex.rest}s</span></td>
+      <td class="set-actions-cell">
+        ${copyBtn}
+        <button type="button" class="set-done-btn" id="${sid}-done" onclick="markSetDone('${sid}','${ex.name.replace(/'/g, "\\'")}',${ex.rest})" aria-label="Mark done">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </td>`;
+}
+
+function copyPreviousSet(sid) {
+  const row = document.getElementById(sid);
+  const prev = row?.previousElementSibling;
+  if (!prev?.classList.contains('set-row')) return;
+  ['w', 'r', 'rpe'].forEach((f) => {
+    const src = document.getElementById(`${prev.id}-${f}`);
+    const dst = document.getElementById(`${sid}-${f}`);
+    if (!dst || !src) return;
+    if (src.value !== '') dst.value = src.value;
+    else if (src.placeholder) dst.value = src.placeholder;
+  });
+}
+
+function openPlatesFromWeight(sid) {
+  const el = document.getElementById(`${sid}-w`);
+  if (!el) return;
+  const v = parseFloat(el.value);
+  const ph = parseFloat(el.placeholder);
+  const prefill = Number.isFinite(v) && v > 0 ? v : ph;
+  openPlateCalculator(Number.isFinite(prefill) && prefill > 0 ? prefill : undefined);
 }
 
 function findExerciseCard(exName) {
@@ -310,19 +357,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   let setsHtml = '';
   for(let s=0;s<ex.sets;s++){
     const sid = `set-${state.currentDay}-${bi}-${ei}-${s}`;
-    setsHtml += `
-      <tr class="set-row" id="${sid}">
-        <td class="set-num">${s+1}</td>
-        <td><input type="number" class="set-input" id="${sid}-w" placeholder="${targetW}" min="0" step="0.5" style="width:68px"></td>
-        <td><input type="number" class="set-input" id="${sid}-r" placeholder="${ex.repsTarget.split('–')[0]}" min="0" style="width:56px"></td>
-        <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" style="width:52px"></td>
-        <td><span class="badge badge-muted" style="font-size:10px">${ex.rest}s</span></td>
-        <td>
-          <button class="set-done-btn" id="${sid}-done" onclick="markSetDone('${sid}','${ex.name}',${ex.rest})" aria-label="Mark done">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-        </td>
-      </tr>`;
+    setsHtml += `<tr class="set-row" id="${sid}">${buildSetRowHtml(sid, s + 1, targetW, ex, s > 0)}</tr>`;
   }
 
   card.innerHTML = `
@@ -344,11 +379,11 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
       <table class="sets-table">
         <thead><tr>
           <th style="width:32px">Set</th>
-          <th>Weight (kg)</th>
+          <th>${weightColumnLabel()}</th>
           <th>Reps</th>
           <th>RPE</th>
           <th>Rest</th>
-          <th>Done</th>
+          <th></th>
         </tr></thead>
         <tbody>${setsHtml}</tbody>
       </table>
@@ -421,17 +456,7 @@ function addSet(btn, exJson, bi, ei) {
     const tr = document.createElement('tr');
     tr.className = 'set-row';
     tr.id = sid;
-    tr.innerHTML = `
-      <td class="set-num">${setNum}</td>
-      <td><input type="number" class="set-input" id="${sid}-w" placeholder="${targetW}" min="0" step="0.5" style="width:68px"></td>
-      <td><input type="number" class="set-input" id="${sid}-r" placeholder="${ex.repsTarget.split('–')[0]}" min="0" style="width:56px"></td>
-      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" style="width:52px"></td>
-      <td><span class="badge badge-muted" style="font-size:10px">${ex.rest}s</span></td>
-      <td>
-        <button class="set-done-btn" id="${sid}-done" onclick="markSetDone('${sid}','${ex.name}',${ex.rest})" aria-label="Mark done">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        </button>
-      </td>`;
+    tr.innerHTML = buildSetRowHtml(sid, setNum, targetW, ex, setNum > 1);
     tbody.appendChild(tr);
     updateSetRowActions(card);
   } catch(e) { console.error(e); }
@@ -464,7 +489,10 @@ function getInProgressSession() {
 }
 
 function saveSetToState(sid, exName) {
-  const w = parseFloat(document.getElementById(sid+'-w')?.value || document.getElementById(sid+'-w')?.placeholder || 0);
+  const wEl = document.getElementById(sid + '-w');
+  const wRaw = parseFloat(wEl?.value);
+  const wPh = parseFloat(wEl?.placeholder);
+  const w = toKg(Number.isFinite(wRaw) ? wRaw : (Number.isFinite(wPh) ? wPh : 0));
   const r = parseInt(document.getElementById(sid+'-r')?.value || document.getElementById(sid+'-r')?.placeholder || 0, 10);
   const rpe = parseFloat(document.getElementById(sid+'-rpe')?.value || document.getElementById(sid+'-rpe')?.placeholder || 7);
   const e1rm = w > 0 && r > 0 ? Math.round(w * (1 + r / 30) * 10) / 10 : 0;
@@ -531,11 +559,11 @@ function showCompleteSummary(session, doneSets) {
       <div class="complete-kpi-lbl">Sets logged</div>
     </div>
     <div class="complete-kpi">
-      <div class="complete-kpi-val">${Math.round(stats.totalVolume).toLocaleString()}kg</div>
+      <div class="complete-kpi-val">${formatSessionVolume(doneSets)}</div>
       <div class="complete-kpi-lbl">Total volume</div>
     </div>
     <div class="complete-kpi">
-      <div class="complete-kpi-val">${stats.bestE1rm > 0 ? stats.bestE1rm + 'kg' : '—'}</div>
+      <div class="complete-kpi-val">${stats.bestE1rm > 0 ? formatWeightWithUnit(stats.bestE1rm) : '—'}</div>
       <div class="complete-kpi-lbl">Best E1RM${stats.topSet ? ' · ' + stats.topSet.exercise.split(' ')[0] : ''}</div>
     </div>`;
   const prSection = document.getElementById('completePrSection');
@@ -545,7 +573,7 @@ function showCompleteSummary(session, doneSets) {
     prList.innerHTML = stats.prs.map(p => `
       <div class="complete-pr-item is-pr">
         <span>${p.exercise}</span>
-        <span><span class="complete-pr-badge">PR</span> ${p.e1rm}kg${p.prev ? ` <span style="color:var(--text-faint);font-weight:400">(was ${p.prev}kg)</span>` : ''}</span>
+        <span><span class="complete-pr-badge">PR</span> ${formatWeightWithUnit(p.e1rm)}${p.prev ? ` <span style="color:var(--text-faint);font-weight:400">(was ${formatWeightWithUnit(p.prev)})</span>` : ''}</span>
       </div>`).join('');
   } else {
     prSection.style.display = 'none';
@@ -556,7 +584,7 @@ function showCompleteSummary(session, doneSets) {
     .map(([name, d]) => `
       <div class="complete-pr-item">
         <span>${name}</span>
-        <span style="font-variant-numeric:tabular-nums">${Math.round(d.volume)}kg vol · ${d.bestE1rm}kg E1RM</span>
+        <span style="font-variant-numeric:tabular-nums">${formatSessionVolume(doneSets.filter(x => x.exercise === name))} vol · ${formatWeightWithUnit(d.bestE1rm)} E1RM</span>
       </div>`).join('');
   document.getElementById('completeSummary').classList.add('open');
   document.getElementById('completeSummary').setAttribute('aria-hidden', 'false');
