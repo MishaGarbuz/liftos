@@ -52,10 +52,48 @@ function syncMobileViewport() {
   }
 }
 
+function updateKeyboardInset() {
+  const vv = window.visualViewport;
+  if (!vv) {
+    document.documentElement.style.setProperty('--keyboard-inset', '0px');
+    return;
+  }
+  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  document.documentElement.style.setProperty('--keyboard-inset', `${Math.round(inset)}px`);
+}
+
 function scrollFieldIntoView(el) {
   if (!el || !isMobileLayout()) return;
+  const scroller =
+    el.closest('.log-page-scroll') ||
+    el.closest('.modal-body') ||
+    document.querySelector('#page-log.active .log-page-scroll');
   requestAnimationFrame(() => {
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    updateKeyboardInset();
+    if (!scroller) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      return;
+    }
+    const row = el.closest('tr.set-row') || el;
+    const scRect = scroller.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const vvTop = vv?.offsetTop ?? 0;
+    const vvHeight = vv?.height ?? window.innerHeight;
+    const onLog = !!el.closest('#page-log');
+    const actionsEl = onLog ? document.getElementById('logSessionActions') : null;
+    const actionsVisible = actionsEl && !actionsEl.classList.contains('is-hidden');
+    const chromeBelow =
+      (actionsVisible ? actionsEl.offsetHeight : 0) +
+      (onLog && document.documentElement.classList.contains('keyboard-open') ? 0 : (document.getElementById('bottomNav')?.offsetHeight || 0));
+    const visibleTop = scRect.top + 8;
+    const visibleBottom = Math.min(scRect.bottom, vvTop + vvHeight - chromeBelow - 12);
+
+    if (rowRect.bottom > visibleBottom) {
+      scroller.scrollTop += rowRect.bottom - visibleBottom;
+    } else if (rowRect.top < visibleTop) {
+      scroller.scrollTop -= visibleTop - rowRect.top;
+    }
   });
 }
 
@@ -65,19 +103,30 @@ function bindKeyboardViewportFix() {
     if (!t?.matches?.('input, textarea, select')) return;
     document.documentElement.classList.add('keyboard-open');
     document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
-    scrollFieldIntoView(t);
+    updateKeyboardInset();
+    requestAnimationFrame(() => scrollFieldIntoView(t));
   };
   const onFocusOut = () => {
     setTimeout(() => {
       const active = document.activeElement;
       if (active?.matches?.('input, textarea, select')) return;
       document.documentElement.classList.remove('keyboard-open');
+      document.documentElement.style.setProperty('--keyboard-inset', '0px');
       syncMobileViewport();
-      if (isMobileLayout()) window.scrollTo(0, 0);
     }, 120);
   };
   document.addEventListener('focusin', onFocusIn);
   document.addEventListener('focusout', onFocusOut);
+  window.visualViewport?.addEventListener('resize', () => {
+    if (document.documentElement.classList.contains('keyboard-open')) {
+      updateKeyboardInset();
+      const active = document.activeElement;
+      if (active?.matches?.('input, textarea, select')) scrollFieldIntoView(active);
+    }
+  }, { passive: true });
+  window.visualViewport?.addEventListener('scroll', () => {
+    if (document.documentElement.classList.contains('keyboard-open')) updateKeyboardInset();
+  }, { passive: true });
 }
 
 function bindMobileViewport() {

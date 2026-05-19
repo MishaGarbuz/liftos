@@ -310,6 +310,14 @@ body.auth-locked .bottom-nav{display:none!important}
   html,body{height:var(--app-height);max-height:var(--app-height);overflow:hidden;overscroll-behavior:none;background:var(--bg);touch-action:manipulation}
   html.keyboard-open .app-shell,
   html.keyboard-open .main{height:var(--app-height);min-height:var(--app-height)}
+  html.keyboard-open .bottom-nav{visibility:hidden;pointer-events:none}
+  html.keyboard-open #page-log.active .log-session-actions{
+    bottom:var(--keyboard-inset,0px);
+    z-index:140;
+  }
+  html.keyboard-open #page-log.active .log-page-scroll{
+    padding-bottom:calc(var(--log-actions-h,64px) + 16px);
+  }
   .app-shell{
     position:fixed;
     top:0;
@@ -411,6 +419,7 @@ body.auth-locked .bottom-nav{display:none!important}
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
     overscroll-behavior-y:contain;
+    scroll-padding-bottom:calc(var(--log-actions-h,64px) + var(--bottom-nav-total) + 24px);
   }
   #page-log.active .log-session-actions{
     position:fixed;
