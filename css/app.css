@@ -163,6 +163,7 @@ a{color:inherit;text-decoration:none}
 /* ── SETS TABLE ───────────────────────────────────────────────── */
 .sets-table{width:100%;border-collapse:collapse}
 .sets-table th{font-size:10px;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;padding:4px 8px 6px;text-align:left}
+.sets-table th.reps-col-hd{white-space:nowrap;min-width:52px}
 .sets-table td{padding:5px 8px;vertical-align:middle}
 .set-row{border-radius:var(--radius-sm);transition:background var(--transition)}
 .set-row:hover{background:var(--surface-2)}

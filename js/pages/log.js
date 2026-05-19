@@ -34,9 +34,40 @@ function formatLastTimeSummary(sets) {
   }).join(' · ');
 }
 
+function isRepsPerSide(repsTarget) {
+  if (!repsTarget) return false;
+  const t = String(repsTarget).toLowerCase();
+  return /\beach\b/.test(t) || /\bper\s*side\b/.test(t) || /\be\/s\b/.test(t);
+}
+
+function repsColumnLabel(ex) {
+  return isRepsPerSide(ex.repsTarget) ? 'REPS E/S' : 'REPS';
+}
+
+function repsPlaceholder(repsTarget) {
+  if (!repsTarget) return '';
+  const cleaned = String(repsTarget)
+    .replace(/\s*(each\s*side|each|per\s*side|e\/s|e\.s\.)\s*$/i, '')
+    .trim();
+  const range = cleaned.match(/^(\d+)\s*[–-]\s*(\d+)/);
+  if (range) return range[1];
+  const leading = cleaned.match(/^(\d+)/);
+  if (leading) return leading[1];
+  return cleaned.split(/\s/)[0] || '';
+}
+
+function formatRepsTargetBadge(repsTarget) {
+  if (!repsTarget) return '';
+  if (!isRepsPerSide(repsTarget)) return repsTarget;
+  const base = String(repsTarget)
+    .replace(/\s*(each\s*side|each|per\s*side|e\/s|e\.s\.)\s*$/i, '')
+    .trim();
+  return `${base} E/S`;
+}
+
 function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
   const wPlaceholder = displayWeight(targetW);
-  const repsPh = ex.repsTarget.split('–')[0];
+  const repsPh = repsPlaceholder(ex.repsTarget);
   const copyBtn = showCopy
     ? `<button type="button" class="set-copy-btn" onclick="copyPreviousSet('${sid}')" title="Copy previous set" aria-label="Copy previous set">↑</button>`
     : '';
@@ -365,7 +396,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
       <div>
         <div class="exercise-name">${ex.name}</div>
         <div class="exercise-meta">
-          <span class="badge badge-muted">${ex.sets}×${ex.repsTarget}</span>
+          <span class="badge badge-muted">${ex.sets}×${formatRepsTargetBadge(ex.repsTarget)}</span>
           <span class="badge badge-muted">Tempo ${ex.tempo}</span>
           <span class="badge badge-accent">RPE ${ex.rpe}</span>
           <span class="badge badge-muted">Rest ${ex.rest}s</span>
@@ -380,7 +411,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
         <thead><tr>
           <th style="width:32px">Set</th>
           <th>${weightColumnLabel()}</th>
-          <th>Reps</th>
+          <th class="reps-col-hd">${repsColumnLabel(ex)}</th>
           <th>RPE</th>
           <th>Rest</th>
           <th></th>
