@@ -50,6 +50,10 @@ function syncMobileViewport() {
   if (logActions && !logActions.classList.contains('is-hidden')) {
     document.documentElement.style.setProperty('--log-actions-h', `${logActions.offsetHeight}px`);
   }
+  if (document.getElementById('page-dashboard')?.classList.contains('active')) {
+    scheduleChartResize(state.dashE1rmChart);
+    scheduleChartResize(state.dashVolumeChart);
+  }
 }
 
 function updateKeyboardInset() {

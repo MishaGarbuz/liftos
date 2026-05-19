@@ -70,6 +70,7 @@ function renderDashboard() {
     data:{labels:volLabels,datasets:[{data:volData,backgroundColor:volLabels.map((_,i)=>[6,12].includes(i+1)?'rgba(245,158,11,0.4)':'rgba(255,92,53,0.5)'),borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8892a4',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#8892a4',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}}}
   });
+  observeChartContainer(state.dashVolumeChart, document.getElementById('dashVolumeChart')?.parentElement);
 
   // E1RM chart
   const e1rmActual=Array(12).fill(null);
@@ -93,6 +94,7 @@ function renderDashboard() {
     },
     options:chartOptions(weightUnitLabel(),getWeightChartScaleBounds(e1rmDatasets))
   });
+  observeChartContainer(state.dashE1rmChart, document.querySelector('#page-dashboard .chart-wrap--e1rm'));
 }
 
 function startTodaysWorkout() {

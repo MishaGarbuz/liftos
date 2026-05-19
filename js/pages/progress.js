@@ -54,6 +54,7 @@ async function renderProgressPage() {
     data:{ labels, datasets: progressDatasets },
     options: chartOptions(weightUnitLabel(), getWeightChartScaleBounds(progressDatasets))
   });
+  observeChartContainer(state.progressChart, document.getElementById('progressChart')?.parentElement);
 
   // Sparklines
   const sg = document.getElementById('sparklineGrid');
@@ -98,11 +99,38 @@ function getWeightChartScaleBounds(datasets) {
   };
 }
 
+function scheduleChartResize(chart) {
+  if (!chart) return;
+  const resize = () => {
+    try { chart.resize(); } catch (_) { /* chart destroyed */ }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(resize));
+  setTimeout(resize, 120);
+  setTimeout(resize, 400);
+}
+
+function observeChartContainer(chart, container) {
+  if (!chart || !container) {
+    scheduleChartResize(chart);
+    return;
+  }
+  if (container._chartResizeObserver) container._chartResizeObserver.disconnect();
+  if (typeof ResizeObserver === 'undefined') {
+    scheduleChartResize(chart);
+    return;
+  }
+  const ro = new ResizeObserver(() => requestAnimationFrame(() => chart.resize()));
+  ro.observe(container);
+  container._chartResizeObserver = ro;
+  scheduleChartResize(chart);
+}
+
 function chartOptions(unit, yScale = {}) {
+  const iosPwa = document.documentElement.classList.contains('ios-pwa');
   return {
     responsive: true,
     maintainAspectRatio: false,
-    layout: { padding: { top: 6, right: 10, bottom: 14, left: 6 } },
+    layout: { padding: { top: 6, right: 10, bottom: iosPwa ? 26 : 14, left: 8 } },
     plugins: {
       legend: { labels: { color: '#8892a4', font: { size: 11 }, boxHeight: 10 } },
       tooltip: {

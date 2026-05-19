@@ -371,6 +371,10 @@ body.auth-locked .bottom-nav{display:none!important}
     overscroll-behavior-y:contain;
     padding-bottom:calc(var(--bottom-nav-total) + 12px);
   }
+  .content:not(.content--log){
+    padding-bottom:calc(var(--bottom-nav-total) + 20px);
+    scroll-padding-bottom:calc(var(--bottom-nav-total) + 20px);
+  }
   .menu-btn{display:flex}
   .bottom-nav{
     display:flex;
@@ -402,6 +406,7 @@ body.auth-locked .bottom-nav{display:none!important}
   .content{padding:16px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
   .chart-wrap{max-width:100%;overflow:visible}
   #page-dashboard .chart-wrap{min-height:200px;padding-bottom:4px}
+  #page-dashboard .card:last-of-type{overflow:visible}
   .history-table{font-size:12px}
   .timer-overlay{left:12px;right:12px;bottom:calc(var(--bottom-nav-total) + 12px);min-width:0}
   .complete-summary-footer{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
@@ -463,6 +468,12 @@ html.ios-pwa .bottom-nav{padding-bottom:var(--safe-bottom)}
 html.ios-pwa .app-shell{padding-top:max(env(safe-area-inset-top,0px),0px)}
 html.ios-pwa .topbar{padding-top:4px}
 html.ios-pwa .complete-summary-footer{padding-bottom:calc(16px + var(--safe-bottom))}
+html.ios-pwa .chart-wrap--e1rm{height:250px;min-height:250px}
+html.ios-pwa #page-dashboard{padding-bottom:12px}
+html.ios-pwa.pwa-standalone .content:not(.content--log){
+  padding-bottom:calc(var(--bottom-nav-total) + 36px);
+  scroll-padding-bottom:calc(var(--bottom-nav-total) + 36px);
+}
 
 /* ── SCROLLBAR ────────────────────────────────────────────────── */
 ::-webkit-scrollbar{width:5px;height:5px}
