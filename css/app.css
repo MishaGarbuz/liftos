@@ -359,11 +359,13 @@ body.auth-locked .bottom-nav{display:none!important}
     top:0;
     bottom:0;
     height:auto;
+    z-index:150;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
   }
   .sidebar.open{transform:translateX(0)}
   .sidebar-logo{padding-top:14px}
+  .mobile-overlay{z-index:140}
   .mobile-overlay.open{display:block}
   .main{
     margin-left:0;
