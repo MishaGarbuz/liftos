@@ -62,14 +62,63 @@ function updateKeyboardInset() {
   document.documentElement.style.setProperty('--keyboard-inset', `${Math.round(inset)}px`);
 }
 
+function offsetWithin(el, container) {
+  const elRect = el.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  return elRect.top - containerRect.top + container.scrollTop;
+}
+
+/** Shrink log scroll area to the slice above the keyboard (layout viewport stays full height on iOS). */
+function syncLogKeyboardLayout() {
+  const scroller = document.querySelector('#page-log.active .log-page-scroll');
+  const keyboardOpen = document.documentElement.classList.contains('keyboard-open');
+  if (!scroller || !keyboardOpen || !isMobileLayout()) {
+    document.documentElement.style.removeProperty('--log-scroll-height');
+    return;
+  }
+  const vv = window.visualViewport;
+  if (!vv) return;
+  updateKeyboardInset();
+  const scRect = scroller.getBoundingClientRect();
+  const actions = document.getElementById('logSessionActions');
+  const actionsH =
+    actions && !actions.classList.contains('is-hidden')
+      ? actions.getBoundingClientRect().height
+      : 0;
+  const vvBottom = vv.offsetTop + vv.height;
+  const available = Math.floor(vvBottom - scRect.top - actionsH - 8);
+  document.documentElement.style.setProperty('--log-scroll-height', `${Math.max(160, available)}px`);
+}
+
+let logScrollRaf = 0;
+
+function scrollLogFieldIntoView(el, scroller) {
+  syncLogKeyboardLayout();
+  cancelAnimationFrame(logScrollRaf);
+  logScrollRaf = requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const row = el.closest('tr.set-row') || el;
+      const rowTop = offsetWithin(row, scroller);
+      const rowH = row.getBoundingClientRect().height;
+      const viewH = scroller.clientHeight;
+      const pad = 16;
+      const maxScroll = Math.max(0, scroller.scrollHeight - viewH);
+      let target = rowTop + rowH + pad - viewH;
+      target = Math.max(0, Math.min(target, maxScroll));
+      scroller.scrollTop = target;
+    });
+  });
+}
+
 function scrollFieldIntoView(el) {
   if (!el || !isMobileLayout()) return;
-  const scroller =
-    el.closest('.log-page-scroll') ||
-    el.closest('.modal-body') ||
-    document.querySelector('#page-log.active .log-page-scroll');
+  const logScroller = el.closest('.log-page-scroll');
+  if (logScroller) {
+    scrollLogFieldIntoView(el, logScroller);
+    return;
+  }
+  const scroller = el.closest('.modal-body');
   requestAnimationFrame(() => {
-    updateKeyboardInset();
     if (!scroller) {
       el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
       return;
@@ -77,22 +126,11 @@ function scrollFieldIntoView(el) {
     const row = el.closest('tr.set-row') || el;
     const scRect = scroller.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
-    const vv = window.visualViewport;
-    const vvTop = vv?.offsetTop ?? 0;
-    const vvHeight = vv?.height ?? window.innerHeight;
-    const onLog = !!el.closest('#page-log');
-    const actionsEl = onLog ? document.getElementById('logSessionActions') : null;
-    const actionsVisible = actionsEl && !actionsEl.classList.contains('is-hidden');
-    const chromeBelow =
-      (actionsVisible ? actionsEl.offsetHeight : 0) +
-      (onLog && document.documentElement.classList.contains('keyboard-open') ? 0 : (document.getElementById('bottomNav')?.offsetHeight || 0));
-    const visibleTop = scRect.top + 8;
-    const visibleBottom = Math.min(scRect.bottom, vvTop + vvHeight - chromeBelow - 12);
-
-    if (rowRect.bottom > visibleBottom) {
-      scroller.scrollTop += rowRect.bottom - visibleBottom;
-    } else if (rowRect.top < visibleTop) {
-      scroller.scrollTop -= visibleTop - rowRect.top;
+    const pad = 12;
+    if (rowRect.bottom > scRect.bottom - pad) {
+      scroller.scrollTop += rowRect.bottom - scRect.bottom + pad;
+    } else if (rowRect.top < scRect.top + pad) {
+      scroller.scrollTop -= scRect.top + pad - rowRect.top;
     }
   });
 }
@@ -105,6 +143,11 @@ function bindKeyboardViewportFix() {
     document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     updateKeyboardInset();
     requestAnimationFrame(() => scrollFieldIntoView(t));
+    if (t.closest('.log-page-scroll')) {
+      setTimeout(() => {
+        if (document.activeElement === t) scrollFieldIntoView(t);
+      }, 280);
+    }
   };
   const onFocusOut = () => {
     setTimeout(() => {
@@ -112,20 +155,22 @@ function bindKeyboardViewportFix() {
       if (active?.matches?.('input, textarea, select')) return;
       document.documentElement.classList.remove('keyboard-open');
       document.documentElement.style.setProperty('--keyboard-inset', '0px');
+      document.documentElement.style.removeProperty('--log-scroll-height');
       syncMobileViewport();
     }, 120);
   };
   document.addEventListener('focusin', onFocusIn);
   document.addEventListener('focusout', onFocusOut);
   window.visualViewport?.addEventListener('resize', () => {
-    if (document.documentElement.classList.contains('keyboard-open')) {
-      updateKeyboardInset();
-      const active = document.activeElement;
-      if (active?.matches?.('input, textarea, select')) scrollFieldIntoView(active);
+    if (!document.documentElement.classList.contains('keyboard-open')) return;
+    syncLogKeyboardLayout();
+    const active = document.activeElement;
+    if (active?.matches?.('input, textarea, select') && active.closest('.log-page-scroll')) {
+      scrollLogFieldIntoView(active, active.closest('.log-page-scroll'));
     }
   }, { passive: true });
   window.visualViewport?.addEventListener('scroll', () => {
-    if (document.documentElement.classList.contains('keyboard-open')) updateKeyboardInset();
+    if (document.documentElement.classList.contains('keyboard-open')) syncLogKeyboardLayout();
   }, { passive: true });
 }
 

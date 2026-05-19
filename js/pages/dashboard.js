@@ -81,16 +81,17 @@ function renderDashboard() {
     }
   });
   if(state.dashE1rmChart) state.dashE1rmChart.destroy();
+  const e1rmDatasets=[
+    {label:'Target',data:LIFT_TARGETS['Bench Press'].map(toDisplayUnit),borderColor:'rgba(255,92,53,0.35)',borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
+    {label:'Actual',data:e1rmActual.map(toDisplayUnit),borderColor:'#ff5c35',backgroundColor:'rgba(255,92,53,0.1)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#ff5c35',tension:0.4,fill:true}
+  ];
   state.dashE1rmChart=new Chart(document.getElementById('dashE1rmChart'),{
     type:'line',
     data:{
       labels:Array.from({length:12},(_,i)=>'W'+(i+1)),
-      datasets:[
-        {label:'Target',data:LIFT_TARGETS['Bench Press'].map(toDisplayUnit),borderColor:'rgba(255,92,53,0.35)',borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
-        {label:'Actual',data:e1rmActual.map(toDisplayUnit),borderColor:'#ff5c35',backgroundColor:'rgba(255,92,53,0.1)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#ff5c35',tension:0.4,fill:true}
-      ]
+      datasets:e1rmDatasets
     },
-    options:chartOptions(weightUnitLabel())
+    options:chartOptions(weightUnitLabel(),getWeightChartScaleBounds(e1rmDatasets))
   });
 }
 

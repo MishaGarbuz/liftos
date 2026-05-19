@@ -44,17 +44,15 @@ async function renderProgressPage() {
   }
 
   const labels = Array.from({length:12},(_,i)=>`W${i+1}`);
+  const progressDatasets=[
+    { label:'Target E1RM', data:targets.map(toDisplayUnit), borderColor:'rgba(255,92,53,0.5)', backgroundColor:'rgba(255,92,53,0.05)', borderDash:[4,3], borderWidth:2, pointRadius:3, tension:0.4 },
+    { label:'Actual E1RM', data:actuals.map(toDisplayUnit), borderColor:'#ff5c35', backgroundColor:'rgba(255,92,53,0.12)', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#ff5c35', tension:0.4 }
+  ];
   if(state.progressChart) state.progressChart.destroy();
   state.progressChart = new Chart(document.getElementById('progressChart'),{
     type:'line',
-    data:{
-      labels,
-      datasets:[
-        { label:'Target E1RM', data:targets.map(toDisplayUnit), borderColor:'rgba(255,92,53,0.5)', backgroundColor:'rgba(255,92,53,0.05)', borderDash:[4,3], borderWidth:2, pointRadius:3, tension:0.4 },
-        { label:'Actual E1RM', data:actuals.map(toDisplayUnit), borderColor:'#ff5c35', backgroundColor:'rgba(255,92,53,0.12)', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#ff5c35', tension:0.4 }
-      ]
-    },
-    options: chartOptions(weightUnitLabel())
+    data:{ labels, datasets: progressDatasets },
+    options: chartOptions(weightUnitLabel(), getWeightChartScaleBounds(progressDatasets))
   });
 
   // Sparklines
@@ -84,13 +82,46 @@ async function renderProgressPage() {
   });
 }
 
-function chartOptions(unit) {
+function getWeightChartScaleBounds(datasets) {
+  const vals = datasets
+    .flatMap(ds => ds.data || [])
+    .filter(v => v != null && v !== '' && !Number.isNaN(Number(v)))
+    .map(Number);
+  if (!vals.length) return {};
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const span = max - min || 10;
+  const pad = Math.max(4, span * 0.12);
   return {
-    responsive:true, maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#8892a4',font:{size:11}}},tooltip:{backgroundColor:'#1a2235',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#8892a4',padding:10}},
-    scales:{
-      x:{ticks:{color:'#8892a4',font:{size:11}},grid:{color:'rgba(255,255,255,0.04)'}},
-      y:{ticks:{color:'#8892a4',font:{size:11},callback:v=>v+unit},grid:{color:'rgba(255,255,255,0.05)'}}
-    }
+    suggestedMin: Math.max(0, Math.floor(min - pad)),
+    suggestedMax: Math.ceil(max + pad * 0.35),
+  };
+}
+
+function chartOptions(unit, yScale = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: { padding: { top: 6, right: 10, bottom: 14, left: 6 } },
+    plugins: {
+      legend: { labels: { color: '#8892a4', font: { size: 11 }, boxHeight: 10 } },
+      tooltip: {
+        backgroundColor: '#1a2235',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        titleColor: '#e8eaf0',
+        bodyColor: '#8892a4',
+        padding: 10,
+      },
+    },
+    scales: {
+      x: { ticks: { color: '#8892a4', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      y: {
+        ticks: { color: '#8892a4', font: { size: 11 }, callback: v => v + unit },
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        grace: '8%',
+        ...yScale,
+      },
+    },
   };
 }

@@ -225,6 +225,7 @@ a{color:inherit;text-decoration:none}
 
 /* ── PROGRESS CHARTS ──────────────────────────────────────────── */
 .chart-wrap{position:relative;height:240px;width:100%;min-width:0}
+.chart-wrap--e1rm{height:220px}
 .lift-chips-scroll{margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:thin;touch-action:pan-x}
 .lift-chips{display:flex;flex-wrap:wrap;gap:6px;min-width:min(100%,max-content)}
 .lift-chip{padding:5px 12px;border-radius:9999px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);cursor:pointer;transition:all var(--transition);flex-shrink:0;white-space:nowrap}
@@ -315,8 +316,15 @@ body.auth-locked .bottom-nav{display:none!important}
     bottom:var(--keyboard-inset,0px);
     z-index:140;
   }
+  html.keyboard-open #page-log.active{
+    padding-bottom:0;
+  }
   html.keyboard-open #page-log.active .log-page-scroll{
-    padding-bottom:calc(var(--log-actions-h,64px) + 16px);
+    flex:0 0 auto;
+    height:var(--log-scroll-height,auto);
+    max-height:var(--log-scroll-height,none);
+    padding-bottom:8px;
+    scroll-padding-bottom:8px;
   }
   .app-shell{
     position:fixed;
@@ -392,7 +400,8 @@ body.auth-locked .bottom-nav{display:none!important}
   .plan-week-grid{grid-template-columns:repeat(4,1fr)}
   .schedule-grid{grid-template-columns:1fr 1fr}
   .content{padding:16px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
-  .chart-wrap{max-width:100%;overflow:hidden}
+  .chart-wrap{max-width:100%;overflow:visible}
+  #page-dashboard .chart-wrap{min-height:200px;padding-bottom:4px}
   .history-table{font-size:12px}
   .timer-overlay{left:12px;right:12px;bottom:calc(var(--bottom-nav-total) + 12px);min-width:0}
   .complete-summary-footer{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
@@ -421,6 +430,8 @@ body.auth-locked .bottom-nav{display:none!important}
     overscroll-behavior-y:contain;
     scroll-padding-bottom:calc(var(--log-actions-h,64px) + var(--bottom-nav-total) + 24px);
   }
+  #page-log.active .set-input,
+  #page-log.active tr.set-row{scroll-margin-top:48px;scroll-margin-bottom:20px}
   #page-log.active .log-session-actions{
     position:fixed;
     left:0;
