@@ -187,6 +187,8 @@ a{color:inherit;text-decoration:none}
 .set-row-btn.remove-set-btn:disabled{opacity:0.35;pointer-events:none}
 .set-weight-cell{padding:4px 6px!important}
 .set-weight-wrap{display:flex;align-items:center;gap:4px}
+.set-weight-wrap--full .set-weight-input{flex:1;min-width:0}
+.set-weight-wrap--full .set-weight-input{width:100%}
 .set-weight-input{width:64px;min-width:0;flex:1}
 .set-plate-btn,.set-copy-btn{flex-shrink:0;width:28px;height:28px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
 .set-plate-btn:hover{color:var(--accent);border-color:var(--accent)}

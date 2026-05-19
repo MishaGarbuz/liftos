@@ -65,18 +65,37 @@ function formatRepsTargetBadge(repsTarget) {
   return `${base} E/S`;
 }
 
+/** Plate calculator only applies to barbell-style loading (not DB, cable, or stack machines). */
+function exerciseUsesPlates(ex) {
+  const name = (ex?.name || '').toLowerCase();
+  const alt = (ex?.alt || '').toLowerCase();
+  const combined = `${name} ${alt}`;
+  if (/\b(dumbbell|dumbbells|\bdb\b|d\.b\.|cable|kettlebell|\bkb\b)\b/.test(combined)) return false;
+  if (/\b(pull-up|pullup|chin-up|push-up|dip|nordic|glute-ham|bodyweight|body weight)\b/.test(combined)) {
+    return false;
+  }
+  if (/\bmachine\b/.test(name) && !/\bbarbell\b/.test(name)) return false;
+  if (/\b(barbell|ez bar|trap bar)\b/.test(combined)) return true;
+  if (/\bbar\b/.test(name) && !/\b(machine|dumbbell|\bdb\b|cable)\b/.test(name)) return true;
+  return false;
+}
+
 function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
   const wPlaceholder = displayWeight(targetW);
   const repsPh = repsPlaceholder(ex.repsTarget);
   const copyBtn = showCopy
     ? `<button type="button" class="set-copy-btn" onclick="copyPreviousSet('${sid}')" title="Copy previous set" aria-label="Copy previous set">↑</button>`
     : '';
+  const plateBtn = exerciseUsesPlates(ex)
+    ? `<button type="button" class="set-plate-btn" onclick="openPlatesFromWeight('${sid}')" title="Plates Calculator" aria-label="Plates Calculator">⊕</button>`
+    : '';
+  const weightWrapClass = plateBtn ? 'set-weight-wrap' : 'set-weight-wrap set-weight-wrap--full';
   return `
       <td class="set-num">${setNum}</td>
       <td class="set-weight-cell">
-        <div class="set-weight-wrap">
+        <div class="${weightWrapClass}">
           <input type="number" class="set-input set-weight-input" id="${sid}-w" placeholder="${wPlaceholder}" min="0" step="0.5" inputmode="decimal">
-          <button type="button" class="set-plate-btn" onclick="openPlatesFromWeight('${sid}')" title="Plates Calculator" aria-label="Plates Calculator">⊕</button>
+          ${plateBtn}
         </div>
       </td>
       <td><input type="number" class="set-input" id="${sid}-r" placeholder="${repsPh}" min="0" inputmode="numeric"></td>
