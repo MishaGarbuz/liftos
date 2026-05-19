@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<link rel="stylesheet" href="/css/app.css?v=21">
+<link rel="stylesheet" href="/css/app.css?v=22">
 </head>
 <body>
 
@@ -203,12 +203,12 @@
         <div class="kpi-card">
           <div class="kpi-label">Weekly Sets</div>
           <div class="kpi-value" id="kpiSets">0</div>
-          <div class="kpi-sub">this week</div>
+          <div class="kpi-sub" id="kpiSetsSub">this week</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Consistency</div>
           <div class="kpi-value" id="kpiConsistency">0%</div>
-          <div class="kpi-sub">sessions / target</div>
+          <div class="kpi-sub" id="kpiConsistencySub">this week</div>
         </div>
       </div>
 
@@ -222,6 +222,7 @@
             <button class="btn btn-primary btn-sm" id="startTodayBtn" onclick="startTodaysWorkout()">Start today's workout</button>
           </div>
           <div class="week-dots" id="weekDots"></div>
+          <div id="weekCompleteBanner" class="week-complete-banner hidden"></div>
         </div>
         <div class="card">
           <div class="card-header">
@@ -265,6 +266,7 @@
         <div class="day-tabs" id="dayTabs"></div>
       </div>
 
+      <div id="logWeekCompleteBanner" class="week-complete-banner hidden"></div>
       <div id="logCompletedBanner" class="log-completed-banner hidden"></div>
 
 
@@ -455,6 +457,7 @@
   <div class="complete-summary-header">
     <h2>Session complete</h2>
     <p id="completeSummarySubtitle">—</p>
+    <div id="completeWeekBadge" class="complete-week-badge hidden"></div>
   </div>
   <div class="complete-summary-body">
     <div class="complete-kpi-row" id="completeKpiRow"></div>

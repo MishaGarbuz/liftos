@@ -263,3 +263,46 @@ const SCHEDULE_DAYS = [
   { day:"Sat", label:"Saturday", type:"tennis", typeClass:"tennis", session:"Tennis Comp Day", notes:"2 × 2-set doubles matches\nNo gym — competition day\nEat well, hydrate" },
   { day:"Sun", label:"Sunday", type:"rest", typeClass:"rest", session:"Rest & Recovery", notes:"Full rest or light walk\nMobility / foam rolling\nMeal prep for the week" }
 ];
+
+/** Completed gym-day progress for a program week (Mon / Tue / Thu / Fri). */
+function getWeekGymProgress(week) {
+  const completedDays = new Set(
+    state.sessions
+      .filter(s => s.completed && s.week === week && DAYS.includes(s.day))
+      .map(s => s.day),
+  );
+  const missingDays = DAYS.filter(d => !completedDays.has(d));
+  return {
+    week,
+    total: DAYS.length,
+    completedCount: completedDays.size,
+    isComplete: missingDays.length === 0,
+    completedDays,
+    missingDays,
+  };
+}
+
+function renderWeekCompleteBanner(el, progress) {
+  if (!el) return;
+  if (progress.isComplete) {
+    el.classList.remove('hidden');
+    el.classList.add('is-complete');
+    el.innerHTML = `
+      <h3>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Week ${progress.week} complete
+      </h3>
+      <p>All <strong>${progress.total} gym sessions</strong> logged (Mon · Tue · Thu · Fri). Great consistency.</p>`;
+    return;
+  }
+  el.classList.remove('is-complete');
+  if (progress.completedCount > 0) {
+    el.classList.remove('hidden');
+    el.innerHTML = `
+      <p><strong>${progress.completedCount} of ${progress.total}</strong> gym days this week
+      · Still to go: <strong>${progress.missingDays.join(', ')}</strong></p>`;
+    return;
+  }
+  el.classList.add('hidden');
+  el.innerHTML = '';
+}

@@ -293,6 +293,11 @@ function renderLogPage() {
     dt.appendChild(btn);
   });
 
+  renderWeekCompleteBanner(
+    document.getElementById('logWeekCompleteBanner'),
+    getWeekGymProgress(state.currentWeek),
+  );
+
   const completed = getCompletedSessionForSlot(state.currentWeek, state.currentDay);
   const actions = document.getElementById('logSessionActions');
   const wc = document.getElementById('workoutContent');
@@ -584,6 +589,17 @@ function showCompleteSummary(session, doneSets) {
   const dayLabel = PROGRAM[session.day]?.label || session.day;
   document.getElementById('completeSummarySubtitle').textContent =
     `${session.date} · Week ${session.week} · ${dayLabel}`;
+  const weekBadge = document.getElementById('completeWeekBadge');
+  const weekProgress = getWeekGymProgress(session.week);
+  if (weekBadge) {
+    if (weekProgress.isComplete) {
+      weekBadge.classList.remove('hidden');
+      weekBadge.textContent = `Week ${session.week} complete — all ${weekProgress.total} gym days logged`;
+    } else {
+      weekBadge.classList.add('hidden');
+      weekBadge.textContent = '';
+    }
+  }
   document.getElementById('completeKpiRow').innerHTML = `
     <div class="complete-kpi">
       <div class="complete-kpi-val">${stats.totalSets}</div>

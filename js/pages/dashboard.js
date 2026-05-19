@@ -15,15 +15,23 @@ function renderDashboard() {
   document.getElementById('kpiE1rm').textContent=bestE1rm>0?formatWeightWithUnit(bestE1rm):'—';
   document.getElementById('kpiE1rmLabel').textContent=bestLift.toLowerCase();
 
-  // Weekly sets
+  // Weekly sets + week progress
+  const weekProgress=getWeekGymProgress(state.currentWeek);
   const weekSessions=completed.filter(s=>s.week===state.currentWeek);
   const weekSets=weekSessions.reduce((a,s)=>a+s.sets.length,0);
   document.getElementById('kpiSets').textContent=weekSets;
+  const kpiSetsSub=document.getElementById('kpiSetsSub');
+  if(kpiSetsSub){
+    kpiSetsSub.textContent=weekProgress.isComplete
+      ? 'week complete'
+      : `${weekProgress.completedCount}/${weekProgress.total} sessions`;
+  }
 
-  // Consistency
-  const target=state.currentWeek*4;
-  const pct=target>0?Math.round((completed.length/target)*100):0;
-  document.getElementById('kpiConsistency').textContent=Math.min(100,pct)+'%';
+  // Consistency (this week's gym days)
+  const weekPct=Math.round((weekProgress.completedCount/weekProgress.total)*100);
+  document.getElementById('kpiConsistency').textContent=weekPct+'%';
+  const kpiConsistencySub=document.getElementById('kpiConsistencySub');
+  if(kpiConsistencySub) kpiConsistencySub.textContent='gym days this week';
 
   // Today
   const dayMap={0:'Sun',1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat'};
@@ -44,16 +52,20 @@ function renderDashboard() {
   // Week dots
   const dots=document.getElementById('weekDots');
   dots.innerHTML='';
-  const completedDays=new Set(weekSessions.map(s=>s.day));
+  dots.classList.toggle('week-dots--complete', weekProgress.isComplete);
+  const completedDays=weekProgress.completedDays;
   DAYS.forEach(d=>{
     const dot=document.createElement('div');
     const isDone=completedDays.has(d);
     const isToday=dayMap[new Date().getDay()]===d;
     dot.className='week-dot'+(isDone?' done':isToday?' today':' upcoming');
     dot.textContent=d.slice(0,1);
-    dot.title=d;
+    dot.title=isDone?`${d} — completed`:d;
     dots.appendChild(dot);
   });
+  renderWeekCompleteBanner(document.getElementById('weekCompleteBanner'), weekProgress);
+  const todayCard=document.querySelector('.today-session-card');
+  if(todayCard) todayCard.classList.toggle('today-session-card--week-complete', weekProgress.isComplete);
 
   // Phase badge
   document.getElementById('dashPhase').textContent=state.currentWeek<=6?'Phase 1':'Phase 2';
