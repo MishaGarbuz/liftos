@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<link rel="stylesheet" href="/css/app.css?v=22">
+<link rel="stylesheet" href="/css/app.css?v=28">
 </head>
 <body>
 
@@ -502,6 +502,25 @@
   </div>
 </div>
 
+<!-- EXERCISE SWAP -->
+<div class="modal-backdrop" id="exerciseSwapModal" onclick="if(event.target===this)closeExerciseSwapModal()">
+  <div class="modal-sheet exercise-swap-sheet" role="dialog" aria-modal="true" aria-labelledby="exerciseSwapTitle">
+    <div class="exercise-swap-handle" aria-hidden="true"></div>
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="exerciseSwapTitle">Swap exercise</div>
+        <div class="modal-subtitle" id="exerciseSwapSubtitle"></div>
+      </div>
+      <button type="button" class="modal-close" onclick="closeExerciseSwapModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body exercise-swap-body" id="exerciseSwapList"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeExerciseSwapModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="exerciseSwapConfirm" onclick="confirmExerciseSwap()">Use exercise</button>
+    </div>
+  </div>
+</div>
+
 <!-- SESSION DETAIL / EDIT MODAL -->
 <div class="modal-backdrop" id="sessionModal" onclick="if(event.target===this)closeSessionModal()">
   <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -526,6 +545,7 @@
 <script src="/js/auth.js"></script>
 <script src="/js/sync.js"></script>
 <script src="/js/data/program.js"></script>
+<script src="/js/data/exercises.js"></script>
 <script src="/js/core/state.js"></script>
 <script src="/js/ui/nav.js"></script>
 <script src="/js/pages/log.js"></script>

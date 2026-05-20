@@ -2,6 +2,10 @@
 /* ═══════════════════════════════════════════════════════════════
    LOG WORKOUT PAGE
 ═══════════════════════════════════════════════════════════════ */
+
+let swapSheetSlotId = null;
+let swapSheetPlannedEx = null;
+let swapSheetSelectedId = null;
 function getCompletedSessionForSlot(week, day) {
   return state.sessions.find(s => s.week === week && s.day === day && s.completed);
 }
@@ -80,6 +84,231 @@ function exerciseUsesPlates(ex) {
   return false;
 }
 
+function getExerciseCard(sidOrSlotId) {
+  if (!sidOrSlotId) return null;
+  if (sidOrSlotId.startsWith('set-')) {
+    return document.getElementById(sidOrSlotId)?.closest('.exercise-card');
+  }
+  return document.querySelector(`.exercise-card[data-slot-id="${sidOrSlotId}"]`);
+}
+
+function getCardExerciseContext(card) {
+  if (!card) return null;
+  return {
+    slotId: card.dataset.slotId,
+    exerciseName: card.dataset.exerciseName,
+    exerciseId: card.dataset.exerciseId,
+    plannedExerciseName: card.dataset.plannedExerciseName,
+    plannedExerciseId: card.dataset.plannedExerciseId,
+    rest: parseInt(card.dataset.rest, 10) || 60,
+  };
+}
+
+function isCardSwapped(card) {
+  if (!card) return false;
+  return card.dataset.exerciseId !== card.dataset.plannedExerciseId;
+}
+
+function formatSwapLastHint(name) {
+  const sets = getLastSetsForExercise(name, state.currentDay);
+  if (!sets) return 'No prior log for this day';
+  return `Last: ${formatLastTimeSummary(sets)}`;
+}
+
+function updateCardLastTimeHint(card, exerciseName) {
+  const el = card.querySelector('.last-time-hint');
+  if (!el) return;
+  const sets = getLastSetsForExercise(exerciseName, state.currentDay);
+  if (!sets) {
+    el.remove();
+    return;
+  }
+  el.innerHTML = `<strong>Last time:</strong> ${formatLastTimeSummary(sets)}`;
+}
+
+function updateCardSwappedBanner(card) {
+  const existing = card.querySelector('.exercise-swapped-from');
+  if (!isCardSwapped(card)) {
+    existing?.remove();
+    card.classList.remove('is-swapped');
+    return;
+  }
+  const text = `Swapped from ${card.dataset.plannedExerciseName}`;
+  if (existing) {
+    existing.textContent = text;
+  } else {
+    const banner = document.createElement('div');
+    banner.className = 'exercise-swapped-from';
+    banner.textContent = text;
+    const row = card.querySelector('.exercise-name-row');
+    row?.insertAdjacentElement('afterend', banner);
+  }
+  card.classList.add('is-swapped');
+}
+
+function refreshSetRowPlateButtons(card, exTemplate) {
+  const pseudoEx = {
+    name: card.dataset.exerciseName,
+    alt: exTemplate?.alt || '',
+  };
+  const usesPlates = exerciseUsesPlates(pseudoEx);
+  card.querySelectorAll('tr.set-row').forEach((row) => {
+    const sid = row.id;
+    const cell = row.querySelector('.set-weight-cell .set-weight-wrap, .set-weight-cell > div');
+    if (!cell) return;
+    const input = document.getElementById(`${sid}-w`);
+    const plateBtn = row.querySelector('.set-plate-btn');
+    if (usesPlates && !plateBtn) {
+      cell.classList.remove('set-weight-wrap--full');
+      cell.classList.add('set-weight-wrap');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'set-plate-btn';
+      btn.setAttribute('onclick', `openPlatesFromWeight('${sid}')`);
+      btn.title = 'Plates Calculator';
+      btn.setAttribute('aria-label', 'Plates Calculator');
+      btn.textContent = '⊕';
+      cell.appendChild(btn);
+    } else if (!usesPlates && plateBtn) {
+      plateBtn.remove();
+      cell.classList.remove('set-weight-wrap');
+      cell.classList.add('set-weight-wrap', 'set-weight-wrap--full');
+    }
+    if (input && !usesPlates) {
+      const wrap = input.closest('.set-weight-wrap');
+      wrap?.classList.add('set-weight-wrap--full');
+    }
+  });
+}
+
+function applySwapToCard(card, swap, persist) {
+  if (!card || !swap) return;
+  card.dataset.exerciseName = swap.exerciseName;
+  card.dataset.exerciseId = swap.exerciseId;
+  const nameEl = card.querySelector('.exercise-name');
+  if (nameEl) nameEl.textContent = swap.exerciseName;
+  updateCardSwappedBanner(card);
+  updateCardLastTimeHint(card, swap.exerciseName);
+  const exTemplate = card._plannedExTemplate;
+  if (exTemplate) refreshSetRowPlateButtons(card, exTemplate);
+  if (persist) persistExerciseSwap(card.dataset.slotId, swap);
+}
+
+function persistExerciseSwap(slotId, swap) {
+  let session = getInProgressSession();
+  if (!session) {
+    session = {
+      sessionId: activeApiSessionId || null,
+      date: new Date().toLocaleDateString('en-AU'),
+      week: state.currentWeek,
+      day: state.currentDay,
+      sets: [],
+      exerciseSwaps: {},
+      completed: false,
+    };
+    state.sessions.push(session);
+  }
+  if (!session.exerciseSwaps) session.exerciseSwaps = {};
+  const plannedId = swap.plannedExerciseId;
+  if (swap.exerciseId === plannedId) {
+    delete session.exerciseSwaps[slotId];
+  } else {
+    session.exerciseSwaps[slotId] = {
+      plannedExerciseName: swap.plannedExerciseName,
+      plannedExerciseId: swap.plannedExerciseId,
+      exerciseName: swap.exerciseName,
+      exerciseId: swap.exerciseId,
+    };
+  }
+  session.sets.forEach((set) => {
+    if (set.slotId === slotId || sidMatchesSlot(set.sid, slotId)) {
+      set.exercise = swap.exerciseName;
+      set.exerciseId = swap.exerciseId;
+      set.plannedExerciseId = swap.plannedExerciseId;
+      set.plannedExerciseName = swap.plannedExerciseName;
+      set.slotId = slotId;
+    }
+  });
+  persistLocalState();
+}
+
+function applyExerciseSwaps(session) {
+  if (!session?.exerciseSwaps) return;
+  Object.entries(session.exerciseSwaps).forEach(([slotId, swap]) => {
+    const card = getExerciseCard(slotId);
+    if (card) applySwapToCard(card, swap, false);
+  });
+}
+
+function openExerciseSwapSheet(slotId) {
+  const card = getExerciseCard(slotId);
+  if (!card || !card._plannedExTemplate) return;
+  if (getSuggestedExercises(card._plannedExTemplate).length <= 1) return;
+  swapSheetSlotId = slotId;
+  swapSheetPlannedEx = card._plannedExTemplate;
+  swapSheetSelectedId = card.dataset.exerciseId;
+  document.getElementById('exerciseSwapSubtitle').textContent =
+    `Planned: ${card.dataset.plannedExerciseName}`;
+  renderExerciseSwapOptions();
+  document.getElementById('exerciseSwapModal')?.classList.add('open');
+}
+
+function closeExerciseSwapModal() {
+  document.getElementById('exerciseSwapModal')?.classList.remove('open');
+  swapSheetSlotId = null;
+  swapSheetPlannedEx = null;
+  swapSheetSelectedId = null;
+}
+
+function renderExerciseSwapOptions() {
+  const list = document.getElementById('exerciseSwapList');
+  if (!list || !swapSheetPlannedEx) return;
+  const options = getSuggestedExercises(swapSheetPlannedEx);
+  list.innerHTML = `
+    <p class="exercise-swap-section-label">Suggested for this slot</p>
+    ${options
+      .map((opt) => {
+        const selected = opt.id === swapSheetSelectedId;
+        return `<button type="button" class="exercise-swap-option${selected ? ' is-selected' : ''}"
+          data-exercise-id="${opt.id}"
+          onclick="selectExerciseSwapOption('${opt.id}')">
+          <div class="exercise-swap-option-name">${opt.name}</div>
+          <div class="exercise-swap-option-meta">${formatSwapLastHint(opt.name)}</div>
+        </button>`;
+      })
+      .join('')}`;
+}
+
+function selectExerciseSwapOption(exerciseId) {
+  swapSheetSelectedId = exerciseId;
+  document.querySelectorAll('#exerciseSwapList .exercise-swap-option').forEach((btn) => {
+    btn.classList.toggle('is-selected', btn.dataset.exerciseId === exerciseId);
+  });
+}
+
+function confirmExerciseSwap() {
+  const card = getExerciseCard(swapSheetSlotId);
+  if (!card || !swapSheetPlannedEx || !swapSheetSelectedId) {
+    closeExerciseSwapModal();
+    return;
+  }
+  const chosen = getSuggestedExercises(swapSheetPlannedEx).find((o) => o.id === swapSheetSelectedId);
+  if (!chosen) {
+    closeExerciseSwapModal();
+    return;
+  }
+  const swap = {
+    plannedExerciseName: card.dataset.plannedExerciseName,
+    plannedExerciseId: card.dataset.plannedExerciseId,
+    exerciseName: chosen.name,
+    exerciseId: chosen.id,
+  };
+  const wasPlanned = swapSheetSelectedId === card.dataset.plannedExerciseId;
+  applySwapToCard(card, swap, true);
+  closeExerciseSwapModal();
+  showSaveToast(wasPlanned ? 'Restored planned exercise' : `Using ${chosen.name}`);
+}
+
 function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
   const wPlaceholder = displayWeight(targetW);
   const repsPh = repsPlaceholder(ex.repsTarget);
@@ -98,12 +327,12 @@ function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
           ${plateBtn}
         </div>
       </td>
-      <td><input type="number" class="set-input" id="${sid}-r" placeholder="${repsPh}" min="0" inputmode="numeric"></td>
+      <td><input type="number" class="set-input" id="${sid}-r" placeholder="${repsPh}" min="1" inputmode="numeric" oninput="clearSetInputError('${sid}-r')"></td>
       <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal"></td>
       <td><span class="badge badge-muted" style="font-size:10px">${ex.rest}s</span></td>
       <td class="set-actions-cell">
         ${copyBtn}
-        <button type="button" class="set-done-btn" id="${sid}-done" onclick="markSetDone('${sid}','${ex.name.replace(/'/g, "\\'")}',${ex.rest})" aria-label="Mark done">
+        <button type="button" class="set-done-btn" id="${sid}-done" onclick="markSetDone('${sid}')" aria-label="Mark done">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
       </td>`;
@@ -163,7 +392,7 @@ function syncDomSetsToState() {
     const w = parseFloat(wEl?.value);
     const r = parseInt(rEl?.value, 10);
     if ((Number.isFinite(w) && w > 0) || (Number.isFinite(r) && r > 0)) {
-      saveSetToState(sid, exName);
+      saveSetToState(sid);
     }
   });
 }
@@ -388,8 +617,11 @@ function renderLogPage() {
 
   updateLogRepeatUi();
   const inProgressSets = getInProgressSession();
-  if (inProgressSets?.sets?.length) {
-    requestAnimationFrame(() => applyInProgressSets(inProgressSets));
+  if (inProgressSets) {
+    requestAnimationFrame(() => {
+      applyExerciseSwaps(inProgressSets);
+      if (inProgressSets.sets?.length) applyInProgressSets(inProgressSets);
+    });
   }
   requestAnimationFrame(() => {
     if (typeof syncMobileViewport === 'function') syncMobileViewport();
@@ -403,8 +635,22 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   const card = document.createElement('div');
   card.className = 'exercise-card'+(inSuper?' in-superset':'');
   card.id = `ex-${state.currentDay}-${bi}-${ei}`;
+  const slotId = getExerciseSlotId(state.currentDay, bi, ei);
+  const plannedId = exerciseIdFromName(ex.name);
+  const session = getInProgressSession();
+  const savedSwap = session?.exerciseSwaps?.[slotId];
+  const displayName = savedSwap?.exerciseName || ex.name;
+  const displayId = savedSwap?.exerciseId || plannedId;
 
-  const lastSets = getLastSetsForExercise(ex.name, state.currentDay);
+  card.dataset.slotId = slotId;
+  card.dataset.plannedExerciseName = ex.name;
+  card.dataset.plannedExerciseId = plannedId;
+  card.dataset.exerciseName = displayName;
+  card.dataset.exerciseId = displayId;
+  card.dataset.rest = String(ex.rest);
+  card._plannedExTemplate = ex;
+
+  const lastSets = getLastSetsForExercise(displayName, state.currentDay);
   const lastHint = lastSets
     ? `<div class="last-time-hint"><strong>Last time:</strong> ${formatLastTimeSummary(lastSets)}</div>`
     : '';
@@ -415,10 +661,20 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
     setsHtml += `<tr class="set-row" id="${sid}">${buildSetRowHtml(sid, s + 1, targetW, ex, s > 0)}</tr>`;
   }
 
+  const showSwap = getSuggestedExercises(ex).length > 1;
+
   card.innerHTML = `
     <div class="exercise-header">
       <div>
-        <div class="exercise-name">${ex.name}</div>
+        <div class="exercise-name-row">
+          ${showSwap
+    ? `<button type="button" class="exercise-name-btn" onclick="openExerciseSwapSheet('${slotId}')">
+            <span class="exercise-name">${displayName}</span>
+            <span class="exercise-swap-pill">Swap</span>
+          </button>`
+    : `<span class="exercise-name">${displayName}</span>`}
+        </div>
+        ${displayId !== plannedId ? `<div class="exercise-swapped-from">Swapped from ${ex.name}</div>` : ''}
         <div class="exercise-meta">
           <span class="badge badge-muted">${ex.sets}×${formatRepsTargetBadge(ex.repsTarget)}</span>
           <span class="badge badge-muted">Tempo ${ex.tempo}</span>
@@ -427,7 +683,6 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
         </div>
         <div class="exercise-notes">${ex.notes}</div>
         ${lastHint}
-        <div style="font-size:11px;color:var(--text-faint);margin-top:4px">Alt: ${ex.alt}</div>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -453,6 +708,8 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
         Add set
       </button>
     </div>`;
+  if (displayId !== plannedId) card.classList.add('is-swapped');
+  refreshSetRowPlateButtons(card, ex);
   updateSetRowActions(card);
   return card;
 }
@@ -517,16 +774,42 @@ function addSet(btn, exJson, bi, ei) {
   } catch(e) { console.error(e); }
 }
 
-function markSetDone(sid, exName, restSec) {
+function clearSetInputError(inputId) {
+  document.getElementById(inputId)?.classList.remove('set-input--invalid');
+}
+
+function getSetRepsFromInput(sid) {
+  const el = document.getElementById(`${sid}-r`);
+  if (!el) return null;
+  const raw = String(el.value).trim();
+  if (raw === '') return null;
+  const reps = parseInt(raw, 10);
+  if (!Number.isFinite(reps) || reps < 1) return null;
+  return reps;
+}
+
+function markSetDone(sid) {
   const row = document.getElementById(sid);
   const btn = document.getElementById(sid+'-done');
   const isDone = btn.classList.contains('checked');
-  const rest = getExerciseRest(exName, restSec);
+  const card = getExerciseCard(sid);
+  const ctx = getCardExerciseContext(card);
+  const exName = ctx?.exerciseName || '';
+  const rest = getExerciseRest(exName, ctx?.rest || 60);
   if(!isDone) {
+    const repsEl = document.getElementById(`${sid}-r`);
+    const reps = getSetRepsFromInput(sid);
+    if (reps === null) {
+      repsEl?.classList.add('set-input--invalid');
+      repsEl?.focus();
+      showSaveToast('Enter reps before completing the set');
+      return;
+    }
+    clearSetInputError(`${sid}-r`);
     btn.classList.add('checked');
     row.classList.add('done');
     startTimer(exName, rest);
-    saveSetToState(sid, exName);
+    saveSetToState(sid);
   } else {
     btn.classList.remove('checked');
     row.classList.remove('done');
@@ -543,16 +826,31 @@ function getInProgressSession() {
   return state.sessions.find(s => s.week === state.currentWeek && s.day === state.currentDay && !s.completed);
 }
 
-function saveSetToState(sid, exName) {
+function saveSetToState(sid) {
+  const card = getExerciseCard(sid);
+  const ctx = getCardExerciseContext(card);
+  const exName = ctx?.exerciseName || card?.querySelector('.exercise-name')?.textContent || '';
   const wEl = document.getElementById(sid + '-w');
   const wRaw = parseFloat(wEl?.value);
   const wPh = parseFloat(wEl?.placeholder);
   const w = toKg(Number.isFinite(wRaw) ? wRaw : (Number.isFinite(wPh) ? wPh : 0));
-  const r = parseInt(document.getElementById(sid+'-r')?.value || document.getElementById(sid+'-r')?.placeholder || 0, 10);
+  const r = getSetRepsFromInput(sid) ?? 0;
   const rpe = parseFloat(document.getElementById(sid+'-rpe')?.value || document.getElementById(sid+'-rpe')?.placeholder || 7);
   const e1rm = w > 0 && r > 0 ? Math.round(w * (1 + r / 30) * 10) / 10 : 0;
   const setNumber = parseSetNumber(sid);
-  const setData = { exercise: exName, weight: w, reps: r, rpe, e1rm, sid, setNumber };
+  const setData = {
+    exercise: exName,
+    exerciseId: ctx?.exerciseId,
+    plannedExerciseId: ctx?.plannedExerciseId,
+    plannedExerciseName: ctx?.plannedExerciseName,
+    slotId: ctx?.slotId,
+    weight: w,
+    reps: r,
+    rpe,
+    e1rm,
+    sid,
+    setNumber,
+  };
   let existing = getInProgressSession();
   if (!existing) {
     existing = {
