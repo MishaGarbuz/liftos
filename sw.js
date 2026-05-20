@@ -1,28 +1,64 @@
-const CACHE = 'liftos-shell-v24';
+const CACHE = 'liftos-shell-v25';
 let restTimerTimeout = null;
+let timerEndAt = 0;
+let timerNotifyPayload = null;
+
+function clearRestTimerSchedule() {
+  if (restTimerTimeout) {
+    clearTimeout(restTimerTimeout);
+    restTimerTimeout = null;
+  }
+  timerEndAt = 0;
+  timerNotifyPayload = null;
+}
+
+function showRestTimerNotification() {
+  const payload = timerNotifyPayload;
+  if (!payload) return;
+  self.registration.showNotification(payload.title || 'Rest over — GO!', {
+    body: payload.body || 'Start your next set',
+    tag: 'liftos-rest',
+    renotify: true,
+  });
+  clearRestTimerSchedule();
+}
+
+/** iOS throttles long SW timers — re-arm in chunks until endAt. */
+function armRestTimerNotification() {
+  if (restTimerTimeout) clearTimeout(restTimerTimeout);
+  if (!timerEndAt || !timerNotifyPayload) return;
+  const delay = timerEndAt - Date.now();
+  if (delay <= 0) {
+    showRestTimerNotification();
+    return;
+  }
+  const chunkMs = Math.min(delay, 15000);
+  restTimerTimeout = setTimeout(() => {
+    restTimerTimeout = null;
+    if (Date.now() >= timerEndAt) showRestTimerNotification();
+    else armRestTimerNotification();
+  }, chunkMs);
+}
 
 self.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || typeof data !== 'object') return;
   if (data.type === 'TIMER_CANCEL') {
-    if (restTimerTimeout) clearTimeout(restTimerTimeout);
-    restTimerTimeout = null;
+    clearRestTimerSchedule();
     return;
   }
   if (data.type === 'TIMER_START') {
-    if (restTimerTimeout) clearTimeout(restTimerTimeout);
-    const delay = Math.max(0, (data.endAt || 0) - Date.now());
-    if (delay <= 0) return;
-    restTimerTimeout = setTimeout(() => {
-      restTimerTimeout = null;
-      self.registration.showNotification(data.title || 'Rest over — GO!', {
-        body: data.body || 'Start your next set',
-        tag: 'liftos-rest',
-        renotify: true,
-      });
-    }, delay);
+    clearRestTimerSchedule();
+    timerEndAt = data.endAt || 0;
+    timerNotifyPayload = {
+      title: data.title || 'Rest over — GO!',
+      body: data.body || 'Start your next set',
+    };
+    if (timerEndAt - Date.now() <= 0) return;
+    armRestTimerNotification();
   }
 });
+
 const SHELL = ['/', '/index.html', '/config.json', '/manifest.json', '/icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
