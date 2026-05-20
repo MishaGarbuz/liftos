@@ -19,7 +19,7 @@ function renderHistory(filter='all') {
     tr.className = 'history-row';
     tr.setAttribute('role', 'button');
     tr.setAttribute('tabindex', '0');
-    tr.setAttribute('aria-label', `View session ${s.date}, week ${s.week} ${s.day}`);
+    tr.setAttribute('aria-label', `View session ${formatDisplayDate(s.date)}, week ${s.week} ${s.day}`);
     tr.onclick = () => openSessionModal(realIdx, false);
     tr.onkeydown = (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -28,7 +28,7 @@ function renderHistory(filter='all') {
       }
     };
     tr.innerHTML = `
-      <td>${s.date}</td>
+      <td>${formatDisplayDate(s.date)}</td>
       <td><span class="badge badge-${s.day==='Mon'||s.day==='Thu'?'accent':'blue'}">${s.day}</span></td>
       <td>Wk ${s.week}</td>
       <td>${totalSets} sets</td>
@@ -71,7 +71,7 @@ function openSessionModal(idx, editMode) {
   const totalVol = doneSets.reduce((a,x)=>(a + (x.weight||0)*(x.reps||0)),0);
 
   document.getElementById('modalTitle').textContent = editMode ? 'Edit Session' : 'Session Overview';
-  document.getElementById('modalSubtitle').textContent = `${s.date} · Week ${s.week} · ${s.day} · ${s.completed?'Completed':'In Progress'}`;
+  document.getElementById('modalSubtitle').textContent = `${formatDisplayDate(s.date)} · Week ${s.week} · ${s.day} · ${s.completed?'Completed':'In Progress'}`;
 
   // KPIs
   const body = document.getElementById('modalBody');

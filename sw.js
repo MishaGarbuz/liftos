@@ -1,4 +1,4 @@
-const CACHE = 'liftos-shell-v25';
+const CACHE = 'liftos-shell-v26';
 let restTimerTimeout = null;
 let timerEndAt = 0;
 let timerNotifyPayload = null;
