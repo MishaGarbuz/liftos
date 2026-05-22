@@ -1,11 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Lifting Tracker - DynamoDB + API Gateway + Lambda + Cognito
+Description: Auxos - DynamoDB + API Gateway + Lambda + Cognito
 
 Parameters:
   AllowedOrigins:
     Type: String
-    Default: 'https://www.liftos.net,https://liftos.net,http://localhost:5500,http://127.0.0.1:5500'
+    Default: 'https://www.auxos.app,https://auxos.app,http://localhost:5500,http://127.0.0.1:5500'
   AlertEmail:
     Type: String
     Description: Email for CloudWatch alarm notifications (optional)
@@ -136,7 +136,7 @@ Resources:
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization'"
-        AllowOrigin: "'https://www.liftos.net,https://liftos.net'"
+        AllowOrigin: "'https://www.auxos.app,https://auxos.app'"
 
   SessionsFunction:
     Type: AWS::Serverless::Function
@@ -286,7 +286,7 @@ Resources:
     Type: AWS::SNS::Topic
     Condition: HasAlertEmail
     Properties:
-      TopicName: liftos-alerts
+      TopicName: auxos-alerts
 
   AlertEmailSubscription:
     Type: AWS::SNS::Subscription
@@ -300,7 +300,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Condition: HasAlertEmail
     Properties:
-      AlarmName: LiftOS-Sessions-Lambda-Errors
+      AlarmName: Auxos-Sessions-Lambda-Errors
       Namespace: AWS/Lambda
       MetricName: Errors
       Dimensions:
@@ -319,7 +319,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Condition: HasAlertEmail
     Properties:
-      AlarmName: LiftOS-DynamoDB-Throttles
+      AlarmName: Auxos-DynamoDB-Throttles
       AlarmDescription: DynamoDB throttled requests
       Namespace: AWS/DynamoDB
       MetricName: ThrottledRequests

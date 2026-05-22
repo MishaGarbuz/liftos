@@ -11,7 +11,7 @@ ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
         'ALLOWED_ORIGINS',
-        'https://www.liftos.net,https://liftos.net,http://localhost:5500,http://127.0.0.1:5500',
+        'https://www.auxos.app,https://auxos.app,http://localhost:5500,http://127.0.0.1:5500',
     ).split(',')
     if o.strip()
 ]
@@ -58,7 +58,7 @@ def cors_origin(event):
     origin = headers.get('Origin') or headers.get('origin') or ''
     if origin in ALLOWED_ORIGINS:
         return origin
-    return ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else 'https://www.liftos.net'
+    return ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else 'https://www.auxos.app'
 
 
 def resp(event, status, body):

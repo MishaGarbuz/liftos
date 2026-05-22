@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create your single LiftOS login (run once after deploy)
+# Create your single Auxos login (run once after deploy)
 set -e
 
 export AWS_PAGER=""
@@ -58,4 +58,4 @@ if [[ "$STATUS" != "CONFIRMED" ]]; then
   exit 1
 fi
 
-echo "Done ($STATUS). Sign in at https://www.liftos.net with that email and password."
+echo "Done ($STATUS). Sign in at https://www.auxos.app with that email and password."

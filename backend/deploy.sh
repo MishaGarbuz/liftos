@@ -52,7 +52,7 @@ CONFIG_FILE="$(cd "$(dirname "$0")/.." && pwd)/config.json"
 cat > "$CONFIG_FILE" <<EOF
 {
   "apiUrl": "$API_URL",
-  "appUrl": "https://www.liftos.net",
+  "appUrl": "https://www.auxos.app",
   "cognito": {
     "region": "$REGION",
     "userPoolId": "$POOL_ID",
