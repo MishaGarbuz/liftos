@@ -13,7 +13,7 @@ function showPage(name, navEl) {
       const bni = document.querySelector(`.bottom-nav-item[data-page="${name}"]`);
       if (bni) bni.classList.add('active');
     }
-    if (navEl.classList.contains('bottom-nav-item') && navEl.dataset.page !== 'menu') {
+    if (navEl.classList.contains('bottom-nav-item')) {
       const ni = document.querySelector(`.nav-item[data-page="${name}"]`);
       if (ni) ni.classList.add('active');
     }
@@ -24,13 +24,14 @@ function showPage(name, navEl) {
     if (bni) bni.classList.add('active');
   }
   document.getElementById('topbarPage').textContent =
-    {dashboard:'Dashboard',log:'Log Workout',progress:'Progression',history:'History',plan:'12-Week Plan',schedule:'Weekly Schedule'}[name]||name;
+    {dashboard:'Dashboard',log:'Log Workout',progress:'Progression',history:'History',plan:'12-Week Plan',schedule:'Weekly Schedule',settings:'Settings'}[name]||name;
   if(name==='log') renderLogPage();
   if(name==='progress') renderProgressPage();
   if(name==='history') renderHistory();
   if(name==='plan') renderPlanPage();
   if(name==='dashboard') renderDashboard();
   if(name==='schedule') renderSchedule();
+  if(name==='settings') renderSettingsPage();
   closeSidebar();
   const contentEl = document.querySelector('main.main .content');
   if (contentEl) {

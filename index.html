@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<link rel="stylesheet" href="/css/app.css?v=45">
+<link rel="stylesheet" href="/css/app.css?v=46">
 </head>
 <body>
 
@@ -128,32 +128,10 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Weekly Schedule
     </div>
-    <div class="sidebar-section">Settings</div>
-    <div style="padding:4px 12px 12px">
-      <label class="text-xs text-muted" style="display:block;margin-bottom:4px">Appearance</label>
-      <select id="themeSelect" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:10px" onchange="setAppTheme(this.value)" title="Auto follows your phone or computer dark mode, or sunset hours">
-        <option value="auto">Auto (system / schedule)</option>
-        <option value="dark">Dark</option>
-        <option value="light">Light</option>
-      </select>
-      <label class="text-xs text-muted" style="display:block;margin-bottom:4px">Color palette</label>
-      <select id="paletteSelect" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:10px" onchange="setAppPalette(this.value)" title="Accent color and logo tint">
-        <option value="ember">Ember (orange)</option>
-        <option value="forge">Forge (amber)</option>
-      </select>
-      <label class="text-xs text-muted" style="display:block;margin-bottom:4px">Weight units</label>
-      <select id="unitSelect" class="btn btn-ghost btn-sm" style="width:100%" onchange="setWeightUnit(this.value)">
-        <option value="kg">Kilograms (kg)</option>
-        <option value="lb">Pounds (lb)</option>
-      </select>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted);cursor:pointer">
-        <input type="checkbox" id="timerVibrate" onchange="setTimerVibrate(this.checked)">
-        Timer vibration
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--text-muted);cursor:pointer">
-        <input type="checkbox" id="timerNotify" onchange="setTimerNotify(this.checked)">
-        Rest timer alerts
-      </label>
+    <div class="sidebar-section">App</div>
+    <div class="nav-item" onclick="showPage('settings',this)" data-page="settings">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
     </div>
   </div>
 
@@ -429,6 +407,68 @@
       </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════
+         SETTINGS PAGE
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-settings">
+      <div class="section-heading">Settings</div>
+      <div class="section-sub">Appearance, units, notifications, and account</div>
+
+      <div class="settings-stack">
+        <section class="card settings-group">
+          <h3 class="settings-group-title">Appearance</h3>
+          <div class="settings-field">
+            <span class="settings-label">Theme</span>
+            <div class="segmented" id="themeSegments" role="group" aria-label="Theme">
+              <button type="button" class="segmented-btn" data-theme-pref="auto">Auto</button>
+              <button type="button" class="segmented-btn" data-theme-pref="dark">Dark</button>
+              <button type="button" class="segmented-btn" data-theme-pref="light">Light</button>
+            </div>
+            <p class="settings-hint">Auto follows your device, or dark from 7pm–7am.</p>
+          </div>
+          <div class="settings-field">
+            <label class="settings-label" for="paletteSelect">Color palette</label>
+            <select id="paletteSelect" class="settings-select" onchange="setAppPalette(this.value)">
+              <option value="ember">Ember (orange)</option>
+              <option value="forge">Forge (amber)</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="card settings-group">
+          <h3 class="settings-group-title">Workout</h3>
+          <div class="settings-field">
+            <label class="settings-label" for="unitSelect">Weight units</label>
+            <select id="unitSelect" class="settings-select" onchange="setWeightUnit(this.value)">
+              <option value="kg">Kilograms (kg)</option>
+              <option value="lb">Pounds (lb)</option>
+            </select>
+          </div>
+          <label class="settings-toggle">
+            <input type="checkbox" id="timerVibrate" onchange="setTimerVibrate(this.checked)">
+            <span>Timer vibration</span>
+          </label>
+          <label class="settings-toggle">
+            <input type="checkbox" id="timerNotify" onchange="setTimerNotify(this.checked)">
+            <span>Rest timer alerts</span>
+          </label>
+        </section>
+
+        <section class="card settings-group">
+          <h3 class="settings-group-title">Account</h3>
+          <p class="settings-hint">Profile and training details will live here.</p>
+          <div class="user-chip settings-account-chip">
+            <div class="avatar">M</div>
+            <div class="user-info">
+              <div class="user-name">Michael G.</div>
+              <div class="user-sub">Signed in</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm settings-signout" onclick="signOut()">Sign out</button>
+        </section>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </main><!-- /main -->
 
@@ -468,9 +508,9 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     Progress
   </button>
-  <button type="button" class="bottom-nav-item" data-page="menu" onclick="toggleSidebar()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    More
+  <button type="button" class="bottom-nav-item" data-page="settings" onclick="showPage('settings',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Settings
   </button>
 </nav>
 
@@ -577,6 +617,7 @@
 <script src="/js/pages/history.js"></script>
 <script src="/js/pages/plan.js"></script>
 <script src="/js/pages/schedule.js"></script>
+<script src="/js/pages/settings.js"></script>
 <script src="/js/pages/dashboard.js"></script>
 <script src="/js/api/client.js"></script>
 <script src="/js/core/viewport.js"></script>

@@ -475,11 +475,8 @@ function loadPrefs() {
   if (tv) tv.checked = state.prefs.timerVibrate !== false;
   const tn = document.getElementById('timerNotify');
   if (tn) tn.checked = state.prefs.timerNotify !== false;
-  const ts = document.getElementById('themeSelect');
-  if (ts) ts.value = state.prefs.theme || 'auto';
-  const ps = document.getElementById('paletteSelect');
-  if (ps) ps.value = state.prefs.palette === 'forge' ? 'forge' : 'ember';
   if (typeof applyThemeFromPrefs === 'function') applyThemeFromPrefs();
+  if (typeof syncSettingsUi === 'function') syncSettingsUi();
 }
 
 function savePrefs() {

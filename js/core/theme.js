@@ -140,21 +140,39 @@
     applyTheme(resolveTheme(themePref || 'auto'), palettePref || DEFAULT_PALETTE);
   }
 
+  function syncSettingsUi() {
+    const pref = typeof state !== 'undefined' && state.prefs?.theme
+      ? state.prefs.theme
+      : readStoredPrefs().theme || 'auto';
+    const palette = getPaletteId();
+    document.querySelectorAll('[data-theme-pref]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.themePref === (pref || 'auto'));
+    });
+    const ps = document.getElementById('paletteSelect');
+    if (ps) ps.value = palette;
+    const us = document.getElementById('unitSelect');
+    if (us && typeof state !== 'undefined') us.value = state.prefs?.units || 'kg';
+    const tv = document.getElementById('timerVibrate');
+    if (tv && typeof state !== 'undefined') tv.checked = state.prefs?.timerVibrate !== false;
+    const tn = document.getElementById('timerNotify');
+    if (tn && typeof state !== 'undefined') tn.checked = state.prefs?.timerNotify !== false;
+  }
+
   function setAppTheme(mode) {
+    const themeMode = mode === 'dark' || mode === 'light' ? mode : 'auto';
     if (typeof state !== 'undefined') {
       state.prefs = state.prefs || {};
-      state.prefs.theme = mode;
+      state.prefs.theme = themeMode;
       if (typeof savePrefs === 'function') savePrefs();
     } else {
       try {
         const data = readStoredPrefs();
-        data.theme = mode;
+        data.theme = themeMode;
         localStorage.setItem(PREFS_KEY, JSON.stringify(data));
       } catch { /* ignore */ }
     }
-    const sel = document.getElementById('themeSelect');
-    if (sel) sel.value = mode;
-    applyAppearanceFromPrefs();
+    applyTheme(resolveTheme(themeMode), getPaletteId());
+    syncSettingsUi();
   }
 
   function setAppPalette(id) {
@@ -170,9 +188,9 @@
         localStorage.setItem(PREFS_KEY, JSON.stringify(data));
       } catch { /* ignore */ }
     }
-    const sel = document.getElementById('paletteSelect');
-    if (sel) sel.value = palette;
-    applyAppearanceFromPrefs();
+    const themePref = typeof state !== 'undefined' ? state.prefs?.theme : readStoredPrefs().theme;
+    applyTheme(resolveTheme(themePref || 'auto'), palette);
+    syncSettingsUi();
     if (typeof renderDashboard === 'function') renderDashboard();
     if (typeof renderProgressPage === 'function') renderProgressPage();
   }
@@ -201,13 +219,7 @@
   function initTheme() {
     applyAppearanceFromPrefs();
     bindThemeListeners();
-    const ts = document.getElementById('themeSelect');
-    if (ts) {
-      const pref = typeof state !== 'undefined' ? state.prefs?.theme : readStoredPrefs().theme;
-      ts.value = pref || 'auto';
-    }
-    const ps = document.getElementById('paletteSelect');
-    if (ps) ps.value = getPaletteId();
+    syncSettingsUi();
   }
 
   global.resolveTheme = resolveTheme;
@@ -216,7 +228,8 @@
   global.applyThemeFromPrefs = applyAppearanceFromPrefs;
   global.setAppTheme = setAppTheme;
   global.setAppPalette = setAppPalette;
+  global.syncSettingsUi = syncSettingsUi;
   global.getChartColors = getChartColors;
   global.getChartUiColors = getChartUiColors;
   global.initTheme = initTheme;
-})();
+})(typeof window !== 'undefined' ? window : globalThis);
