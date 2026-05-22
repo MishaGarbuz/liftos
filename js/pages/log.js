@@ -667,10 +667,10 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
 
   const showSwap = getSuggestedExercises(ex).length > 1;
   const block = getProgramBlock(bi);
-  const isLeadInPair = inSuper && ei === 0 && isSupersetStyleBlock(block);
-  const pairCount = block?.exercises?.length || 0;
-  const supersetRestHint = isLeadInPair
-    ? `<div class="superset-rest-hint">Rest <strong>${ex.rest}s</strong> after all ${pairCount} exercises — then start your next set here</div>`
+  const lastEi = (block?.exercises?.length || 1) - 1;
+  const isRestAnchor = inSuper && ei === lastEi && isSupersetStyleBlock(block);
+  const supersetRestHint = isRestAnchor
+    ? `<div class="superset-rest-hint">Rest <strong>${ex.rest}s</strong> starts after you complete this exercise</div>`
     : '';
 
   card.innerHTML = `
@@ -859,9 +859,7 @@ function getProgramBlock(bi) {
 }
 
 function isSupersetStyleBlock(block) {
-  return Boolean(
-    block && (block.type === 'superset' || block.type === 'core') && block.exercises?.length > 1,
-  );
+  return Boolean(block && block.type === 'superset' && block.exercises?.length > 1);
 }
 
 function isSetRowDone(sid) {
@@ -932,39 +930,46 @@ function findNextSupersetSetSid(day, bi, setIndex) {
   return null;
 }
 
-function getSupersetLeadExerciseCard(bi) {
-  return document.getElementById(`ex-${state.currentDay}-${bi}-0`);
+function getSupersetTrailExerciseIndex(block) {
+  return Math.max(0, (block?.exercises?.length || 1) - 1);
 }
 
-function getSupersetLeadExerciseName(block, bi) {
-  const card = getSupersetLeadExerciseCard(bi);
+function getSupersetTrailExerciseCard(bi, block) {
+  const ei = getSupersetTrailExerciseIndex(block);
+  return document.getElementById(`ex-${state.currentDay}-${bi}-${ei}`);
+}
+
+function getSupersetTrailExerciseName(block, bi) {
+  const card = getSupersetTrailExerciseCard(bi, block);
   const ctx = getCardExerciseContext(card);
-  const planned = block?.exercises?.[0];
-  return ctx?.exerciseName || planned?.name || 'Exercise';
+  const trail = block?.exercises?.[getSupersetTrailExerciseIndex(block)];
+  return ctx?.exerciseName || trail?.name || 'Exercise';
 }
 
-/** Rest + next row on exercise A after a full superset/core round. */
+/** Rest on the last exercise in the pair/block; next work is set 1 on exercise A. */
 function getSupersetRoundRestTarget(parsed) {
   const block = getProgramBlock(parsed.bi);
   if (!block?.exercises?.length) {
-    return { exerciseName: 'Superset', restSec: 60, nextSid: null, nextSetNum: null };
+    return { exerciseName: 'Superset', restSec: 60, nextSid: null, nextSetNum: null, trailCard: null };
   }
-  const leadName = getSupersetLeadExerciseName(block, parsed.bi);
-  const leadRest = getExerciseRest(leadName, block.exercises[0].rest);
+  const trailName = getSupersetTrailExerciseName(block, parsed.bi);
+  const trailEx = block.exercises[getSupersetTrailExerciseIndex(block)];
+  const trailRest = getExerciseRest(trailName, trailEx.rest);
   const nextSetIndex = parsed.setIndex + 1;
   const nextSid = buildSetSid(parsed.day, parsed.bi, 0, nextSetIndex);
   const nextRow = document.getElementById(nextSid);
   const hasNext = nextRow && !isSetRowDone(nextSid);
   return {
-    exerciseName: leadName,
-    restSec: leadRest,
+    exerciseName: trailName,
+    restSec: trailRest,
     nextSid: hasNext ? nextSid : null,
     nextSetNum: hasNext ? nextSetIndex + 1 : null,
+    trailCard: getSupersetTrailExerciseCard(parsed.bi, block),
   };
 }
 
 /**
- * Superset/core: no rest between exercises in a round — highlight next set until the round is complete.
+ * Superset: no rest between exercises in a round — highlight next set until the round is complete.
  * @returns {boolean} true if rest timer was handled (started or intentionally skipped)
  */
 function handleSupersetAfterSetDone(parsed, fallbackExName, fallbackRestSec) {
@@ -982,12 +987,8 @@ function handleSupersetAfterSetDone(parsed, fallbackExName, fallbackRestSec) {
 
   clearSupersetHighlights(blockEl);
   const target = getSupersetRoundRestTarget(parsed);
-  if (target.nextSid) setCurrentExerciseCard(getExerciseCard(target.nextSid));
-  else clearCurrentExerciseCards();
-  const timerLabel = target.nextSetNum
-    ? `${target.exerciseName} · set ${target.nextSetNum}`
-    : target.exerciseName;
-  startTimer(timerLabel, target.restSec, target.nextSid);
+  setCurrentExerciseCard(target.trailCard);
+  startTimer(target.exerciseName, target.restSec, target.nextSid);
   return true;
 }
 
