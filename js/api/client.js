@@ -351,20 +351,40 @@ async function syncSetDeleteToApi(setData, session) {
   }
 }
 
+async function deleteCloudSession(sessionId, setSids = []) {
+  if (!sessionId) return;
+  if (typeof dropQueuedSessionOps === 'function') dropQueuedSessionOps(sessionId, setSids);
+  if (!apiOnline) {
+    enqueueSync({ type: 'deleteSession', sessionId });
+    return;
+  }
+  try {
+    setSyncStatus('syncing', 'Clearing…');
+    await apiCall('DELETE', `/sessions/${encodeURIComponent(sessionId)}`);
+    setSyncStatus('connected', 'Synced');
+  } catch (e) {
+    console.warn('session delete failed', e);
+    enqueueSync({ type: 'deleteSession', sessionId });
+    apiOnline = false;
+    setSyncStatus('local', 'Local only');
+  }
+}
+
 async function syncSetToApi(setData) {
   if (!setData.weight || !setData.reps) return;
+  const payload = { ...setData, sessionId: setData.sessionId || activeApiSessionId || getInProgressSession()?.sessionId };
   if (!apiOnline) {
-    enqueueSync({ type: 'set', payload: setData });
+    enqueueSync({ type: 'set', payload });
     setSyncStatus('local', 'Local only');
     return;
   }
   try {
     setSyncStatus('syncing', 'Saving…');
-    await window._syncSetOp(setData);
+    await window._syncSetOp(payload);
     setSyncStatus('connected', 'Synced');
   } catch (e) {
     console.warn('set sync failed', e);
-    enqueueSync({ type: 'set', payload: setData });
+    enqueueSync({ type: 'set', payload });
     apiOnline = false;
     setSyncStatus('local', 'Local only');
   }

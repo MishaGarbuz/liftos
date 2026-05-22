@@ -79,6 +79,8 @@
           await global._syncSessionOp(op.payload, op.completed);
         } else if (op.type === 'deleteSet' && typeof global._syncDeleteSetOp === 'function') {
           await global._syncDeleteSetOp(op.payload);
+        } else if (op.type === 'deleteSession' && op.sessionId) {
+          await global.apiCall('DELETE', `/sessions/${encodeURIComponent(op.sessionId)}`);
         }
       } catch (e) {
         console.warn('sync queue item failed', op, e);
@@ -96,6 +98,19 @@
   global.dropQueuedSetSync = function (sid) {
     if (!sid || !syncQueue.length) return;
     syncQueue = syncQueue.filter((op) => !(op.type === 'set' && op.payload?.sid === sid));
+    persistSyncQueue();
+  };
+
+  global.dropQueuedSessionOps = function (sessionId, sids = []) {
+    if (!sessionId || !syncQueue.length) return;
+    const sidSet = new Set(sids);
+    syncQueue = syncQueue.filter((op) => {
+      if (op.type === 'deleteSession' && op.sessionId === sessionId) return false;
+      if (op.type === 'session' && op.payload?.sessionId === sessionId) return false;
+      if (op.type === 'set' && (op.payload?.sessionId === sessionId || sidSet.has(op.payload?.sid))) return false;
+      if (op.type === 'deleteSet' && (op.payload?.sessionId === sessionId || sidSet.has(op.payload?.sid))) return false;
+      return true;
+    });
     persistSyncQueue();
   };
 

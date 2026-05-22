@@ -1235,11 +1235,15 @@ async function deleteSession(idx) {
   }
 }
 
-function clearSession() {
+async function clearSession() {
   if (!confirm('Clear this session?')) return;
+  const session = getInProgressSession();
+  const sessionId = session?.sessionId || activeApiSessionId;
+  const setSids = session?.sets?.map((s) => s.sid).filter(Boolean) || [];
   state.sessions = state.sessions.filter(s => !(s.week === state.currentWeek && s.day === state.currentDay && !s.completed));
   activeApiSessionId = null;
   persistLocalState();
+  if (sessionId) await deleteCloudSession(sessionId, setSids);
   renderLogPage();
 }
 
