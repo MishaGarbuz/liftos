@@ -191,7 +191,6 @@ a{color:inherit;text-decoration:none}
 .set-row.done .set-num{color:var(--success)}
 .set-row--superset-next{background:rgba(255,92,53,0.1);box-shadow:inset 0 0 0 2px var(--accent)}
 .set-row--superset-next .set-num{color:var(--accent)}
-.set-row--superset-next .set-done-btn{border-color:var(--accent);color:var(--accent);animation:supersetPulse 1.2s ease-in-out infinite}
 @keyframes supersetPulse{0%,100%{opacity:1}50%{opacity:0.55}}
 .set-num{font-size:12px;font-weight:700;color:var(--text-faint);width:28px;text-align:center}
 .set-input{width:72px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;font-size:13px;font-weight:600;color:var(--text);text-align:center;transition:border-color var(--transition),color var(--transition)}
@@ -203,11 +202,10 @@ a{color:inherit;text-decoration:none}
 .set-input.set-input--invalid{border-color:var(--warning);box-shadow:0 0 0 2px rgba(245,158,11,0.2)}
 .set-input.target{border-color:transparent;color:var(--text-muted);background:transparent;pointer-events:none}
 .set-done-btn{width:32px;height:32px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);color:var(--text-faint);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all var(--transition);flex-shrink:0}
-.set-done-btn svg{opacity:0;transition:opacity var(--transition)}
-.set-done-btn:hover{background:var(--surface-2);border-color:var(--text-muted);color:var(--text-muted)}
+.set-done-btn:hover{border-color:var(--text-muted);color:var(--text-muted)}
 .set-done-btn.checked{background:rgba(34,197,94,0.15);border-color:var(--success);color:var(--success)}
 .set-done-btn.checked:hover{background:rgba(34,197,94,0.2);border-color:var(--success);color:var(--success)}
-.set-done-btn.checked svg{opacity:1}
+.set-row--superset-next:not(.done) .set-done-btn:not(.checked){border-color:var(--accent);color:var(--accent);animation:supersetPulse 1.2s ease-in-out infinite}
 .log-page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 .log-page-header .section-heading{margin-bottom:4px}
 .log-plates-btn{flex-shrink:0;white-space:nowrap}
