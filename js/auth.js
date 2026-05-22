@@ -35,9 +35,23 @@
     return res.json();
   }
 
+  function getIdTokenEmail() {
+    try {
+      const raw = global.sessionStorage?.getItem?.("liftos_auth_v1");
+      if (!raw) return null;
+      const token = JSON.parse(raw).idToken;
+      if (!token) return null;
+      const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+      return payload.email || payload["cognito:username"] || null;
+    } catch {
+      return null;
+    }
+  }
+
   global.validateCognitoPassword = validateCognitoPassword;
   global.PASSWORD_HINT = PASSWORD_HINT;
   global.cognitoIdpRequest = cognitoIdpRequest;
+  global.getIdTokenEmail = getIdTokenEmail;
 
   global.cognitoForgotPassword = async function (email) {
     const cfg = cognitoConfig();

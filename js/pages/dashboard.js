@@ -77,12 +77,14 @@ function renderDashboard() {
   const volLabels=Array.from({length:12},(_,i)=>'W'+(i+1));
   const volData=volLabels.map((_,i)=>{
     const w=i+1;
-    return completed.filter(s=>s.week===w).reduce((a,s)=>a+s.sets.length,0)||([6,12].includes(w)?8:16);
+    const deload = typeof isDeloadWeek === 'function' ? isDeloadWeek(w) : [6, 12].includes(w);
+    const gymCount = (typeof DAYS !== 'undefined' ? DAYS.length : 4) || 4;
+    return completed.filter(s=>s.week===w).reduce((a,s)=>a+s.sets.length,0)||(deload ? gymCount * 2 : gymCount * 4);
   });
   if(state.dashVolumeChart) state.dashVolumeChart.destroy();
   state.dashVolumeChart=new Chart(document.getElementById('dashVolumeChart'),{
     type:'bar',
-    data:{labels:volLabels,datasets:[{data:volData,backgroundColor:volLabels.map((_,i)=>[6,12].includes(i+1)?'rgba(245,158,11,0.45)':chartC.volumeBar),borderRadius:4}]},
+    data:{labels:volLabels,datasets:[{data:volData,backgroundColor:volLabels.map((_,i)=>(typeof isDeloadWeek==='function'?isDeloadWeek(i+1):[6,12].includes(i+1))?'rgba(245,158,11,0.45)':chartC.volumeBar),borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ui.tick,font:{size:10}},grid:{display:false}},y:{ticks:{color:ui.tick,font:{size:10}},grid:{color:ui.grid}}}}
   });
   observeChartContainer(state.dashVolumeChart, document.getElementById('dashVolumeChart')?.parentElement);

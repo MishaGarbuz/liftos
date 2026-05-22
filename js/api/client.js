@@ -682,9 +682,12 @@ async function handleResetPassword() {
 }
 
 async function bootApp() {
-  const dayMap = { 1: 'Mon', 2: 'Tue', 4: 'Thu', 5: 'Fri' };
-  const todayNum = new Date().getDay();
-  if (dayMap[todayNum]) state.currentDay = dayMap[todayNum];
+  const email = typeof getIdTokenEmail === 'function' ? getIdTokenEmail() : null;
+  if (typeof applyProgramForEmail === 'function') applyProgramForEmail(email);
+  if (typeof updateUserChrome === 'function') updateUserChrome(getActiveProgramBundle?.());
+  state.currentDay = typeof defaultGymDayForToday === 'function'
+    ? defaultGymDayForToday()
+    : (DAYS[0] || 'Mon');
   loadPrefs();
   loadLocalState();
   renderDashboard();

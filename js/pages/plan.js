@@ -7,19 +7,21 @@ function renderPlanPage() {
   const grid = document.getElementById('planWeekGrid');
   grid.innerHTML = '';
   for(let w=1;w<=12;w++){
-    const isD=[6,12].includes(w);
+    const isD=typeof isDeloadWeek==='function'?isDeloadWeek(w):[6,12].includes(w);
+    const phase=typeof getActiveProgramBundle==='function'?getActiveProgramBundle().phaseLabel(w):(w<=6?'Phase 1':'Phase 2');
     const btn=document.createElement('button');
     btn.className='plan-week-btn'+(w===state.planWeek?' active':'')+(isD?' deload':'');
-    btn.innerHTML=`<div>W${w}</div><div style="font-size:9px;margin-top:2px">${isD?'DELOAD':w<=6?'Phase 1':'Phase 2'}</div>`;
+    btn.innerHTML=`<div>W${w}</div><div style="font-size:9px;margin-top:2px">${isD?'DELOAD':phase}</div>`;
     btn.onclick=()=>{state.planWeek=w;renderPlanPage();};
     grid.appendChild(btn);
   }
 
-  const deload=[6,12].includes(state.planWeek);
+  const deload=typeof isDeloadWeek==='function'?isDeloadWeek(state.planWeek):[6,12].includes(state.planWeek);
+  const phase=typeof getActiveProgramBundle==='function'?getActiveProgramBundle().phaseLabel(state.planWeek):'';
   const wi=state.planWeek-1;
   let html=`<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
     <span class="card-title-lg">Week ${state.planWeek}</span>
-    <span class="badge ${deload?'badge-warning':'badge-accent'}">${deload?'DELOAD':state.planWeek<=6?'Phase 1':'Phase 2'}</span>
+    <span class="badge ${deload?'badge-warning':'badge-accent'}">${deload?'DELOAD':phase}</span>
     ${deload?'<span style="font-size:12px;color:var(--warning)">Reduce load 40% · Focus on technique</span>':''}
   </div>
   <div style="overflow-x:auto">
@@ -34,10 +36,10 @@ function renderPlanPage() {
       block.exercises.forEach((ex,ei)=>{
         const isSuper=block.type==='superset'||block.type==='core';
         const wArr=PLAN_PROGRESSIONS[dayKey];
-        let tw=ex.weight;
-        if(wArr&&wArr[wi]) {
-          const idx=dayKey==='Mon'?[0,1,2,3,4]:dayKey==='Tue'?[0,1,2,3]:dayKey==='Thu'?[0,1,2,3,4]:dayKey==='Fri'?[0,1,2,3,4]:[0];
-          // Just use base progression weight scaled
+        let tw=typeof resolveTargetWeight==='function'
+          ? resolveTargetWeight(ex, state.planWeek, dayKey, ex.name, null)
+          : ex.weight;
+        if(wArr&&wArr[wi]&&!resolveTargetWeight) {
           tw=Math.round(ex.weight*(deload?0.6:1+(wi*0.025))*2)/2;
         }
         html+=`<tr${first?` class="day-group"`:''}>

@@ -583,7 +583,7 @@ function renderLogPage() {
   const wt = document.getElementById('logWeekTabs');
   wt.innerHTML = '';
   for(let w=1;w<=12;w++){
-    const isDeload = [6,12].includes(w);
+    const isDeload = typeof isDeloadWeek === 'function' ? isDeloadWeek(w) : [6, 12].includes(w);
     const btn = document.createElement('button');
     btn.className = 'week-tab'+(w===state.currentWeek?' active':'')+(isDeload?' deload':'');
     btn.textContent = 'W'+w;
@@ -597,7 +597,7 @@ function renderLogPage() {
     const btn = document.createElement('button');
     const done = getCompletedSessionForSlot(state.currentWeek, d);
     btn.className = 'day-tab'+(d===state.currentDay?' active':'')+(done?' completed':'');
-    btn.textContent = {Mon:'Mon',Tue:'Tue',Thu:'Thu',Fri:'Fri'}[d];
+    btn.textContent = d;
     btn.title = done ? 'Completed — view in history' : '';
     btn.onclick = ()=>{ state.currentDay=d; renderLogPage(); };
     dt.appendChild(btn);
@@ -627,7 +627,9 @@ function renderLogPage() {
 
   hideLogCompletedBanner();
   if (actions) actions.classList.remove('is-hidden');
-  document.getElementById('deloadBanner').style.display = [6,12].includes(state.currentWeek)?'flex':'none';
+  document.getElementById('deloadBanner').style.display =
+    (typeof isDeloadWeek==='function'?isDeloadWeek(state.currentWeek):[6,12].includes(state.currentWeek))
+      ?'flex':'none';
 
   const day = PROGRAM[state.currentDay];
   // Warmup
@@ -693,9 +695,6 @@ function renderLogPage() {
 }
 
 function buildExerciseCard(ex, bi, ei, inSuper) {
-  const deload = [6,12].includes(state.currentWeek);
-  const baseW = ex.weight;
-  const targetW = deload ? Math.round(baseW*0.6*2)/2 : baseW;
   const card = document.createElement('div');
   card.className = 'exercise-card'+(inSuper?' in-superset':'');
   card.id = `ex-${state.currentDay}-${bi}-${ei}`;
@@ -705,6 +704,9 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   const savedSwap = session?.exerciseSwaps?.[slotId];
   const displayName = savedSwap?.exerciseName || ex.name;
   const displayId = savedSwap?.exerciseId || plannedId;
+  const targetW = typeof resolveTargetWeight === 'function'
+    ? resolveTargetWeight(ex, state.currentWeek, state.currentDay, displayName, slotId)
+    : ex.weight;
 
   card.dataset.slotId = slotId;
   card.dataset.plannedExerciseName = ex.name;
@@ -720,7 +722,11 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
     : '';
 
   let setsHtml = '';
-  for(let s=0;s<ex.sets;s++){
+  const blockMeta = getProgramBlock(bi);
+  const setCount = typeof getSetsForExercise === 'function'
+    ? getSetsForExercise(ex, blockMeta, state.currentWeek)
+    : ex.sets;
+  for (let s = 0; s < setCount; s++) {
     const sid = `set-${state.currentDay}-${bi}-${ei}-${s}`;
     setsHtml += `<tr class="set-row" id="${sid}">${buildSetRowHtml(sid, s + 1, targetW, ex, s > 0)}</tr>`;
   }
@@ -834,8 +840,11 @@ function addSet(btn, exJson, bi, ei) {
     if (!tbody) return;
     const setNum = tbody.rows.length + 1;
     const sid = `set-${state.currentDay}-${bi}-${ei}-${setNum-1}`;
-    const deload = [6,12].includes(state.currentWeek);
-    const targetW = deload ? Math.round(ex.weight*0.6*2)/2 : ex.weight;
+    const cardEl = btn.closest('.exercise-card');
+    const ctx = getCardExerciseContext(cardEl);
+    const targetW = typeof resolveTargetWeight === 'function'
+      ? resolveTargetWeight(ex, state.currentWeek, state.currentDay, ctx?.exerciseName || ex.name, cardEl?.dataset?.slotId)
+      : ex.weight;
     const tr = document.createElement('tr');
     tr.className = 'set-row';
     tr.id = sid;
