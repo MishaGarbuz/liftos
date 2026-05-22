@@ -1237,13 +1237,17 @@ async function deleteSession(idx) {
 
 async function clearSession() {
   if (!confirm('Clear this session?')) return;
-  const session = getInProgressSession();
-  const sessionId = session?.sessionId || activeApiSessionId;
-  const setSids = session?.sets?.map((s) => s.sid).filter(Boolean) || [];
-  state.sessions = state.sessions.filter(s => !(s.week === state.currentWeek && s.day === state.currentDay && !s.completed));
+  const toClear = state.sessions.filter(
+    (s) => s.week === state.currentWeek && s.day === state.currentDay && !s.completed,
+  );
+  const sessionIds = [...new Set([...toClear.map((s) => s.sessionId), activeApiSessionId].filter(Boolean))];
+  const setSids = toClear.flatMap((s) => (s.sets || []).map((x) => x.sid).filter(Boolean));
+  state.sessions = state.sessions.filter(
+    (s) => !(s.week === state.currentWeek && s.day === state.currentDay && !s.completed),
+  );
   activeApiSessionId = null;
   persistLocalState();
-  if (sessionId) await deleteCloudSession(sessionId, setSids);
+  for (const sessionId of sessionIds) await deleteCloudSession(sessionId, setSids);
   renderLogPage();
 }
 
