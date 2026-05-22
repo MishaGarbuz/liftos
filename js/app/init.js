@@ -13,6 +13,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('backToLoginLink')?.addEventListener('click', showLoginPanel);
   document.getElementById('resetBtn')?.addEventListener('click', handleResetPassword);
   loadPrefs();
+  if (typeof initTheme === 'function') initTheme();
+  window.addEventListener('auxos-theme-change', () => {
+    if (document.getElementById('page-dashboard')?.classList.contains('active') && typeof renderDashboard === 'function') renderDashboard();
+    if (document.getElementById('page-progress')?.classList.contains('active') && typeof renderProgressPage === 'function') renderProgressPage();
+  });
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }

@@ -1,7 +1,7 @@
 {
-  "name": "LiftOS",
-  "short_name": "LiftOS",
-  "description": "Personal lifting tracker",
+  "name": "Auxos",
+  "short_name": "Auxos",
+  "description": "Strength training tracker",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

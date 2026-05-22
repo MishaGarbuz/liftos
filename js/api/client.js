@@ -475,6 +475,11 @@ function loadPrefs() {
   if (tv) tv.checked = state.prefs.timerVibrate !== false;
   const tn = document.getElementById('timerNotify');
   if (tn) tn.checked = state.prefs.timerNotify !== false;
+  const ts = document.getElementById('themeSelect');
+  if (ts) ts.value = state.prefs.theme || 'auto';
+  const ps = document.getElementById('paletteSelect');
+  if (ps) ps.value = state.prefs.palette === 'forge' ? 'forge' : 'ember';
+  if (typeof applyThemeFromPrefs === 'function') applyThemeFromPrefs();
 }
 
 function savePrefs() {
@@ -676,6 +681,6 @@ function exportData() {
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='liftos-data-'+new Date().toISOString().slice(0,10)+'.json';
+  a.download='auxos-data-'+new Date().toISOString().slice(0,10)+'.json';
   a.click();
 }

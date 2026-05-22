@@ -1,6 +1,6 @@
-# LiftOS
+# Auxos
 
-Personal lifting tracker — **https://www.liftos.net** · also **https://www.auxos.app**
+Personal lifting tracker — **https://www.auxos.app** · also **https://www.liftos.net**
 
 Static SPA + API Gateway + Lambda + DynamoDB + Cognito (`ap-southeast-2`) · GitHub `MishaGarbuz/liftos`
 
@@ -33,7 +33,7 @@ cd backend
 
 Password: 12+ chars, upper, lower, number, symbol. Pool is admin-create only (no public sign-up).
 
-Sign in at https://www.liftos.net or https://www.auxos.app (same Cognito account and cloud data). Use **Forgot password** on the login screen if needed.
+Sign in at https://www.auxos.app (or https://www.liftos.net — same Cognito account and cloud data). Use **Forgot password** on the login screen if needed.
 
 ## Custom domain (auxos.app)
 

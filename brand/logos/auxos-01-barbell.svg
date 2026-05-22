@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 72" fill="none" role="img" aria-label="Auxos">
+  <g transform="translate(8 4)">
+    <rect x="2" y="26" width="8" height="36" rx="3" fill="#14b8a6"/>
+    <rect x="50" y="26" width="8" height="36" rx="3" fill="#14b8a6"/>
+    <rect x="14" y="38" width="32" height="10" rx="4" fill="#2dd4bf"/>
+    <path d="M30 8 L8 58 L22 58 L30 38 L38 58 L52 58 Z" fill="#e8eaf0"/>
+    <path d="M30 14 L16 52 L24 52 L30 36 L36 52 L44 52 Z" fill="#14b8a6"/>
+  </g>
+  <text x="76" y="46" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700" letter-spacing="-1" fill="#e8eaf0">AUXOS</text>
+</svg>

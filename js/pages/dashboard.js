@@ -70,6 +70,9 @@ function renderDashboard() {
   // Phase badge
   document.getElementById('dashPhase').textContent=state.currentWeek<=6?'Phase 1':'Phase 2';
 
+  const chartC = typeof getChartColors === 'function' ? getChartColors() : { accent: '#ff5c35', accentFill: 'rgba(255,92,53,0.12)', targetLine: 'rgba(255,92,53,0.35)', volumeBar: 'rgba(255,92,53,0.55)' };
+  const ui = typeof getChartUiColors === 'function' ? getChartUiColors() : { tick: '#8892a4', grid: 'rgba(255,255,255,0.04)' };
+
   // Volume chart
   const volLabels=Array.from({length:12},(_,i)=>'W'+(i+1));
   const volData=volLabels.map((_,i)=>{
@@ -79,8 +82,8 @@ function renderDashboard() {
   if(state.dashVolumeChart) state.dashVolumeChart.destroy();
   state.dashVolumeChart=new Chart(document.getElementById('dashVolumeChart'),{
     type:'bar',
-    data:{labels:volLabels,datasets:[{data:volData,backgroundColor:volLabels.map((_,i)=>[6,12].includes(i+1)?'rgba(245,158,11,0.4)':'rgba(255,92,53,0.5)'),borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8892a4',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#8892a4',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}}}
+    data:{labels:volLabels,datasets:[{data:volData,backgroundColor:volLabels.map((_,i)=>[6,12].includes(i+1)?'rgba(245,158,11,0.45)':chartC.volumeBar),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ui.tick,font:{size:10}},grid:{display:false}},y:{ticks:{color:ui.tick,font:{size:10}},grid:{color:ui.grid}}}}
   });
   observeChartContainer(state.dashVolumeChart, document.getElementById('dashVolumeChart')?.parentElement);
 
@@ -95,8 +98,8 @@ function renderDashboard() {
   });
   if(state.dashE1rmChart) state.dashE1rmChart.destroy();
   const e1rmDatasets=[
-    {label:'Target',data:LIFT_TARGETS['Bench Press'].map(toDisplayUnit),borderColor:'rgba(255,92,53,0.35)',borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
-    {label:'Actual',data:e1rmActual.map(toDisplayUnit),borderColor:'#ff5c35',backgroundColor:'rgba(255,92,53,0.1)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#ff5c35',tension:0.4,fill:true}
+    {label:'Target',data:LIFT_TARGETS['Bench Press'].map(toDisplayUnit),borderColor:chartC.targetLine,borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
+    {label:'Actual',data:e1rmActual.map(toDisplayUnit),borderColor:chartC.accent,backgroundColor:chartC.accentFill,borderWidth:2,pointRadius:3,pointBackgroundColor:chartC.accent,tension:0.4,fill:true}
   ];
   state.dashE1rmChart=new Chart(document.getElementById('dashE1rmChart'),{
     type:'line',

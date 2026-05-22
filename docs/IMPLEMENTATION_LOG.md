@@ -1,4 +1,4 @@
-# LiftOS implementation log
+# Auxos implementation log
 
 Working reference for **where features live** and **how they behave**. Update this file when you ship a user-facing change.
 
@@ -20,6 +20,8 @@ Working reference for **where features live** and **how they behave**. Update th
 ---
 
 ## Rest timer + next exercise label
+
+**Mockup:** `canvases/rest-timer-next-exercise-mockup.canvas.tsx` (open beside chat)
 
 **Primary files**
 
@@ -152,10 +154,25 @@ Working reference for **where features live** and **how they behave**. Update th
 
 ---
 
+## Appearance (dark / light / auto)
+
+**Primary files:** `js/core/theme.js`, `css/app.css` (`[data-theme]`), `index.html` (`#themeSelect`, head flash script), `docs/BRAND.md`
+
+**Logic**
+
+1. Pref `state.prefs.theme`: `dark` | `light` | `auto` (default `auto`).
+2. `auto` → `prefers-color-scheme` when OS reports it; else dark **19:00–07:00** local.
+3. `applyTheme()` sets `document.documentElement[data-theme]` + `theme-color` meta.
+4. `auxos-theme-change` event re-renders dashboard/progress charts.
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-05-22 | **BRAND.md** + dark/light/auto themes. |
+| 2026-05-22 | Rebrand **LiftOS → Auxos**; domain **auxos.app**; teal accent + A monogram icon. |
 | 2026-05-22 | Rest timer shows **Next: {exercise}** on last set of an exercise; same text in push notifications. Added this implementation log. |
 | 2026-05-22 | Clear deletes all in-progress cloud sessions for the week/day slot. |
 | 2026-05-22 | DELETE set API + sync when unticking a set. |

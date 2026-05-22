@@ -1,4 +1,4 @@
-/* LiftOS — Cognito auth helpers */
+/* Auxos — Cognito auth helpers */
 (function (global) {
   const PASSWORD_HINT =
     'At least 12 characters with uppercase, lowercase, a number, and a symbol.';

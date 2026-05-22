@@ -62,7 +62,7 @@ function fireRestTimerAlert() {
   if (document.visibilityState === 'visible' && document.hasFocus()) return;
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
-      new Notification(title, { body, tag: 'liftos-rest', renotify: true });
+      new Notification(title, { body, tag: 'auxos-rest', renotify: true });
     } catch { /* ignore */ }
   }
 }

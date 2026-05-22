@@ -11,7 +11,7 @@ let state = {
   dashE1rmChart: null,
   planWeek: 1,
   progressLift: "Bench Press",
-  prefs: { units: 'kg', timerVibrate: true, timerNotify: true }
+  prefs: { units: 'kg', theme: 'auto', palette: 'ember', timerVibrate: true, timerNotify: true }
 };
 
 const REST_PREFS_KEY = 'liftos_rest_v1';

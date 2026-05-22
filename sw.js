@@ -1,4 +1,4 @@
-const CACHE = 'liftos-shell-v40';
+const CACHE = 'auxos-shell-v3';
 let restTimerTimeout = null;
 let timerEndAt = 0;
 let timerNotifyPayload = null;
@@ -17,7 +17,7 @@ function showRestTimerNotification() {
   if (!payload) return;
   self.registration.showNotification(payload.title || 'Rest over — GO!', {
     body: payload.body || 'Start your next set',
-    tag: 'liftos-rest',
+    tag: 'auxos-rest',
     renotify: true,
   });
   clearRestTimerSchedule();

@@ -44,9 +44,10 @@ async function renderProgressPage() {
   }
 
   const labels = Array.from({length:12},(_,i)=>`W${i+1}`);
+  const chartC = typeof getChartColors === 'function' ? getChartColors() : { accent: '#ff5c35', accentFill: 'rgba(255,92,53,0.12)', targetLine: 'rgba(255,92,53,0.35)' };
   const progressDatasets=[
-    { label:'Target E1RM', data:targets.map(toDisplayUnit), borderColor:'rgba(255,92,53,0.5)', backgroundColor:'rgba(255,92,53,0.05)', borderDash:[4,3], borderWidth:2, pointRadius:3, tension:0.4 },
-    { label:'Actual E1RM', data:actuals.map(toDisplayUnit), borderColor:'#ff5c35', backgroundColor:'rgba(255,92,53,0.12)', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#ff5c35', tension:0.4 }
+    { label:'Target E1RM', data:targets.map(toDisplayUnit), borderColor: chartC.targetLine, backgroundColor: 'transparent', borderDash:[4,3], borderWidth:2, pointRadius:3, tension:0.4 },
+    { label:'Actual E1RM', data:actuals.map(toDisplayUnit), borderColor: chartC.accent, backgroundColor: chartC.accentFill, borderWidth:2.5, pointRadius:4, pointBackgroundColor: chartC.accent, tension:0.4 }
   ];
   if(state.progressChart) state.progressChart.destroy();
   state.progressChart = new Chart(document.getElementById('progressChart'),{
@@ -76,7 +77,7 @@ async function renderProgressPage() {
       const ctx = document.getElementById('spark-'+k.replace(/\s+/g,''));
       if(ctx) new Chart(ctx,{
         type:'line',
-        data:{labels:Array.from({length:12},(_,i)=>'W'+(i+1)),datasets:[{data:LIFT_TARGETS[k],borderColor:'#ff5c35',borderWidth:1.5,pointRadius:0,tension:0.4,fill:true,backgroundColor:'rgba(255,92,53,0.08)'}]},
+        data:{labels:Array.from({length:12},(_,i)=>'W'+(i+1)),datasets:[{data:LIFT_TARGETS[k],borderColor:chartC.accent,borderWidth:1.5,pointRadius:0,tension:0.4,fill:true,backgroundColor:chartC.accentFill}]},
         options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}
       });
     },50);
@@ -127,26 +128,27 @@ function observeChartContainer(chart, container) {
 
 function chartOptions(unit, yScale = {}) {
   const iosPwa = document.documentElement.classList.contains('ios-pwa');
+  const ui = typeof getChartUiColors === 'function' ? getChartUiColors() : { tick: '#8892a4', grid: 'rgba(255,255,255,0.05)', tooltipBg: '#1a2235', tooltipTitle: '#e8eaf0', tooltipBody: '#8892a4' };
   return {
     responsive: true,
     maintainAspectRatio: false,
     layout: { padding: { top: 6, right: 10, bottom: iosPwa ? 26 : 14, left: 8 } },
     plugins: {
-      legend: { labels: { color: '#8892a4', font: { size: 11 }, boxHeight: 10 } },
+      legend: { labels: { color: ui.tick, font: { size: 11 }, boxHeight: 10 } },
       tooltip: {
-        backgroundColor: '#1a2235',
-        borderColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: ui.tooltipBg,
+        borderColor: ui.grid,
         borderWidth: 1,
-        titleColor: '#e8eaf0',
-        bodyColor: '#8892a4',
+        titleColor: ui.tooltipTitle,
+        bodyColor: ui.tooltipBody,
         padding: 10,
       },
     },
     scales: {
-      x: { ticks: { color: '#8892a4', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      x: { ticks: { color: ui.tick, font: { size: 11 } }, grid: { color: ui.grid } },
       y: {
-        ticks: { color: '#8892a4', font: { size: 11 }, callback: v => v + unit },
-        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { color: ui.tick, font: { size: 11 }, callback: v => v + unit },
+        grid: { color: ui.grid },
         grace: '8%',
         ...yScale,
       },

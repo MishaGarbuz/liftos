@@ -1,8 +1,10 @@
-# LiftOS frontend
+# Auxos frontend
 
 Single-page app: slim `index.html` shell, styles in `css/app.css`, logic in ordered global scripts under `js/` (no bundler).
 
 **Feature logic & change log:** [IMPLEMENTATION_LOG.md](./IMPLEMENTATION_LOG.md) — rest timer, supersets, sync, clear session, swaps, etc.
+
+**Brand & themes:** [BRAND.md](./BRAND.md) — colour palette, typography, dark / light / auto appearance.
 
 ## Load order
 
@@ -14,6 +16,7 @@ Scripts run in declaration order; later files may call earlier globals.
 | 2 | `js/sync.js` | Offline queue, cloud sync |
 | 3 | `js/data/program.js` | Program, schedule, lift targets (constants) |
 | 4 | `js/core/state.js` | `state`, API globals, timer state |
+| 4b | `js/core/theme.js` | Dark / light / auto appearance |
 | 5 | `js/ui/nav.js` | `showPage`, sidebar, mobile nav |
 | 6 | `js/pages/log.js` | Log session, sets, complete workout |
 | 7 | `js/features/timer.js` | Rest timer + notifications |

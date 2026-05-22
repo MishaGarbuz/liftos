@@ -3,7 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "LiftOS static deploy — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        - echo "Auxos static deploy — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
         - test -f index.html
         - test -f config.json
         - test -f manifest.json

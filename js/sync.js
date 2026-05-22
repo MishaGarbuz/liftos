@@ -1,4 +1,4 @@
-/* LiftOS — cloud sync queue + status */
+/* Auxos — cloud sync queue + status */
 (function (global) {
   const SYNC_QUEUE_KEY = 'liftos_sync_queue_v1';
   let syncQueue = [];

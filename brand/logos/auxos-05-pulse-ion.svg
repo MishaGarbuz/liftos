@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 72" fill="none" role="img" aria-label="Auxos">
+  <path d="M10 58 L28 22 L36 42 L44 14 L52 58 Z" fill="none" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M14 58 L30 18 L38 58 Z" fill="#a78bfa"/>
+  <path d="M30 18 L46 58 L54 58 L38 18 Z" fill="#a78bfa" opacity="0.55"/>
+  <path d="M4 40 H60" stroke="#e8eaf0" stroke-width="2" opacity="0.2"/>
+  <text transform="translate(72 46) skewX(-6.24)" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700" letter-spacing="-1" font-style="italic" fill="#e8eaf0">AUXOS</text>
+</svg>
