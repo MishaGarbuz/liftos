@@ -598,11 +598,9 @@ function renderLogPage() {
       const wrapper = document.createElement('div');
       wrapper.className = 'superset-block';
       const tag = block.type === 'core' ? 'Core Block' : block.label;
-      const tagClass = block.type === 'core' ? 'badge-accent' : 'badge-purple';
-      const tagStyle = block.type === 'core' ? 'background:var(--accent-dim);color:var(--accent)' : '';
       wrapper.innerHTML = `
         <div class="superset-label">
-          <span class="superset-tag" style="${tagStyle}">${tag}</span>
+          <span class="superset-tag">${tag}</span>
           ${block.type==='superset'?'<span class="superset-hint">Perform exercises back-to-back with minimal rest between</span>':''}
         </div>`;
       block.exercises.forEach((ex, ei) => {
