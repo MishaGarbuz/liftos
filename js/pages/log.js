@@ -412,7 +412,12 @@ function applyInProgressSets(session) {
       const btn = document.getElementById(s.sid + '-done');
       if (row && btn && (s.weight > 0 || s.reps > 0)) {
         btn.classList.add('checked');
+        btn.setAttribute('aria-pressed', 'true');
         row.classList.add('done');
+      } else if (btn) {
+        btn.classList.remove('checked');
+        btn.setAttribute('aria-pressed', 'false');
+        row?.classList.remove('done');
       }
     });
   });
@@ -818,6 +823,7 @@ function markSetDone(sid) {
     }
     clearSetInputError(`${sid}-r`);
     btn.classList.add('checked');
+    btn.setAttribute('aria-pressed', 'true');
     row.classList.add('done');
     saveSetToState(sid);
     setCurrentExerciseCard(card);
@@ -826,9 +832,11 @@ function markSetDone(sid) {
     if (!handled) startTimer(exName, rest);
   } else {
     btn.classList.remove('checked');
+    btn.setAttribute('aria-pressed', 'false');
     row.classList.remove('done');
     clearSupersetHighlights(row.closest('.superset-block'));
     setCurrentExerciseCard(card);
+    removeSetFromState(sid);
   }
 }
 
@@ -994,6 +1002,14 @@ function handleSupersetAfterSetDone(parsed, fallbackExName, fallbackRestSec) {
 
 function getInProgressSession() {
   return state.sessions.find(s => s.week === state.currentWeek && s.day === state.currentDay && !s.completed);
+}
+
+function removeSetFromState(sid) {
+  const session = getInProgressSession();
+  if (!session?.sets?.length) return;
+  const before = session.sets.length;
+  session.sets = session.sets.filter((s) => s.sid !== sid);
+  if (session.sets.length !== before) persistLocalState();
 }
 
 function saveSetToState(sid) {

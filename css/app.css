@@ -203,8 +203,11 @@ a{color:inherit;text-decoration:none}
 .set-input.set-input--invalid{border-color:var(--warning);box-shadow:0 0 0 2px rgba(245,158,11,0.2)}
 .set-input.target{border-color:transparent;color:var(--text-muted);background:transparent;pointer-events:none}
 .set-done-btn{width:32px;height:32px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);color:var(--text-faint);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all var(--transition);flex-shrink:0}
-.set-done-btn:hover{background:rgba(34,197,94,0.1);border-color:var(--success);color:var(--success)}
+.set-done-btn svg{opacity:0;transition:opacity var(--transition)}
+.set-done-btn:hover{background:var(--surface-2);border-color:var(--text-muted);color:var(--text-muted)}
 .set-done-btn.checked{background:rgba(34,197,94,0.15);border-color:var(--success);color:var(--success)}
+.set-done-btn.checked:hover{background:rgba(34,197,94,0.2);border-color:var(--success);color:var(--success)}
+.set-done-btn.checked svg{opacity:1}
 .log-page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 .log-page-header .section-heading{margin-bottom:4px}
 .log-plates-btn{flex-shrink:0;white-space:nowrap}
