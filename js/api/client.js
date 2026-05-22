@@ -298,6 +298,16 @@ window._syncSetOp = async function (setData) {
   });
 };
 
+window._syncDeleteSetOp = async function (payload) {
+  const sessionId = payload.sessionId || (await ensureApiSession());
+  if (!sessionId || !payload.exercise) return;
+  const q = new URLSearchParams({
+    exercise: payload.exercise,
+    setNumber: String(payload.setNumber || 1),
+  });
+  await apiCall('DELETE', `/sessions/${encodeURIComponent(sessionId)}/sets?${q.toString()}`);
+};
+
 window._syncSessionOp = async function (session, completed) {
   const sid = session.sessionId || await ensureApiSession();
   session.sessionId = sid;
@@ -313,6 +323,33 @@ window._syncSessionOp = async function (session, completed) {
     completedSets: doneSets.length,
   });
 };
+
+async function syncSetDeleteToApi(setData, session) {
+  if (!setData?.exercise) return;
+  const payload = {
+    exercise: setData.exercise,
+    setNumber: setData.setNumber || 1,
+    sessionId: session?.sessionId || activeApiSessionId,
+    sid: setData.sid,
+  };
+  if (typeof dropQueuedSetSync === 'function') dropQueuedSetSync(setData.sid);
+  if (!apiOnline) {
+    enqueueSync({ type: 'deleteSet', payload });
+    setSyncStatus('local', 'Local only');
+    return;
+  }
+  try {
+    setSyncStatus('syncing', 'Saving…');
+    await window._syncDeleteSetOp(payload);
+    if (session?.sessionId) await syncSessionToApi(session, false);
+    setSyncStatus('connected', 'Synced');
+  } catch (e) {
+    console.warn('set delete sync failed', e);
+    enqueueSync({ type: 'deleteSet', payload });
+    apiOnline = false;
+    setSyncStatus('local', 'Local only');
+  }
+}
 
 async function syncSetToApi(setData) {
   if (!setData.weight || !setData.reps) return;

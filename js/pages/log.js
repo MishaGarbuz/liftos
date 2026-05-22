@@ -958,9 +958,9 @@ function highlightSupersetNextRow(sid) {
   row.classList.add('set-row--superset-next');
   setCurrentExerciseCard(row.closest('.exercise-card'));
   requestAnimationFrame(() => {
-    const reps = document.getElementById(`${sid}-r`);
-    if (typeof focusLogField === 'function') focusLogField(reps);
-    else reps?.focus({ preventScroll: true });
+    const weight = document.getElementById(`${sid}-w`);
+    if (typeof focusLogField === 'function') focusLogField(weight);
+    else weight?.focus({ preventScroll: true });
   });
 }
 
@@ -1041,12 +1041,25 @@ function getInProgressSession() {
   return state.sessions.find(s => s.week === state.currentWeek && s.day === state.currentDay && !s.completed);
 }
 
+function buildSetDeletePayload(sid) {
+  const card = getExerciseCard(sid);
+  const ctx = getCardExerciseContext(card);
+  const existing = getInProgressSession()?.sets?.find((s) => s.sid === sid);
+  return {
+    sid,
+    exercise: existing?.exercise || ctx?.exerciseName || card?.querySelector('.exercise-name')?.textContent || '',
+    setNumber: existing?.setNumber || parseSetNumber(sid),
+  };
+}
+
 function removeSetFromState(sid) {
   const session = getInProgressSession();
-  if (!session?.sets?.length) return;
-  const before = session.sets.length;
-  session.sets = session.sets.filter((s) => s.sid !== sid);
-  if (session.sets.length !== before) persistLocalState();
+  const payload = buildSetDeletePayload(sid);
+  if (session?.sets?.length) {
+    session.sets = session.sets.filter((s) => s.sid !== sid);
+    persistLocalState();
+  }
+  if (payload.exercise) syncSetDeleteToApi(payload, session);
 }
 
 function saveSetToState(sid) {

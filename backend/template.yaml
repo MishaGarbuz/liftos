@@ -207,6 +207,12 @@ Resources:
             RestApiId: !Ref LiftingTrackerApi
             Path: /sessions/{sessionId}/sets
             Method: GET
+        DeleteSet:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions/{sessionId}/sets
+            Method: DELETE
         OptionsSets:
           Type: Api
           Properties:

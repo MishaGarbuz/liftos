@@ -77,8 +77,8 @@
           await global._syncSetOp(op.payload);
         } else if (op.type === 'session' && typeof global._syncSessionOp === 'function') {
           await global._syncSessionOp(op.payload, op.completed);
-        } else if (op.type === 'delete' && typeof global._syncDeleteOp === 'function') {
-          await global._syncDeleteOp(op.payload);
+        } else if (op.type === 'deleteSet' && typeof global._syncDeleteSetOp === 'function') {
+          await global._syncDeleteSetOp(op.payload);
         }
       } catch (e) {
         console.warn('sync queue item failed', op, e);
@@ -91,6 +91,12 @@
     if (!syncQueue.length && global.apiOnline) {
       global.setSyncStatus('connected', 'Synced');
     }
+  };
+
+  global.dropQueuedSetSync = function (sid) {
+    if (!sid || !syncQueue.length) return;
+    syncQueue = syncQueue.filter((op) => !(op.type === 'set' && op.payload?.sid === sid));
+    persistSyncQueue();
   };
 
   global.enqueueSync = enqueueSync;

@@ -74,6 +74,18 @@ def lambda_handler(event, context):
         _update_progress(event, exercise, session_id, body.get('week', 1), item.get('e1rm', 0))
         return resp(event, 201, item)
 
+    if method == 'DELETE':
+        params = event.get('queryStringParameters') or {}
+        body = json.loads(event.get('body') or '{}')
+        exercise = params.get('exercise') or body.get('exercise')
+        set_num = params.get('setNumber') or body.get('setNumber')
+        if not exercise or set_num is None:
+            return resp(event, 400, {'error': 'exercise and setNumber required'})
+        set_num = int(set_num)
+        sk = f'SET#{exercise}#{set_num:03d}'
+        table.delete_item(Key={'pk': f'SESSION#{session_id}', 'sk': sk})
+        return resp(event, 200, {'deleted': True, 'exercise': exercise, 'setNumber': set_num})
+
     return resp(event, 405, {'error': 'Method not allowed'})
 
 
