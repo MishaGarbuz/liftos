@@ -616,12 +616,16 @@ function renderLogPage() {
   });
 
   updateLogRepeatUi();
+  bindWorkoutInputFocus();
   const inProgressSets = getInProgressSession();
   if (inProgressSets) {
     requestAnimationFrame(() => {
       applyExerciseSwaps(inProgressSets);
       if (inProgressSets.sets?.length) applyInProgressSets(inProgressSets);
+      setInitialCurrentExercise();
     });
+  } else {
+    requestAnimationFrame(() => setInitialCurrentExercise());
   }
   requestAnimationFrame(() => {
     if (typeof syncMobileViewport === 'function') syncMobileViewport();
@@ -808,11 +812,16 @@ function markSetDone(sid) {
     clearSetInputError(`${sid}-r`);
     btn.classList.add('checked');
     row.classList.add('done');
-    startTimer(exName, rest);
     saveSetToState(sid);
+    setCurrentExerciseCard(card);
+    const parsed = parseSetSid(sid);
+    const handled = parsed && handleSupersetAfterSetDone(parsed, exName, rest);
+    if (!handled) startTimer(exName, rest);
   } else {
     btn.classList.remove('checked');
     row.classList.remove('done');
+    clearSupersetHighlights(row.closest('.superset-block'));
+    setCurrentExerciseCard(card);
   }
 }
 
@@ -820,6 +829,138 @@ function parseSetNumber(sid) {
   const parts = sid.split('-');
   const n = parseInt(parts[parts.length - 1], 10);
   return Number.isFinite(n) ? n + 1 : 1;
+}
+
+/** @returns {{ day: string, bi: number, ei: number, setIndex: number } | null} */
+function parseSetSid(sid) {
+  if (!sid || !sid.startsWith('set-')) return null;
+  const parts = sid.split('-');
+  if (parts.length < 5) return null;
+  const setIndex = parseInt(parts[parts.length - 1], 10);
+  const ei = parseInt(parts[parts.length - 2], 10);
+  const bi = parseInt(parts[parts.length - 3], 10);
+  if (!Number.isFinite(setIndex) || !Number.isFinite(ei) || !Number.isFinite(bi)) return null;
+  return { day: parts[1], bi, ei, setIndex };
+}
+
+function buildSetSid(day, bi, ei, setIndex) {
+  return `set-${day}-${bi}-${ei}-${setIndex}`;
+}
+
+function getProgramBlock(bi) {
+  return PROGRAM[state.currentDay]?.blocks?.[bi] ?? null;
+}
+
+function isSupersetStyleBlock(block) {
+  return Boolean(
+    block && (block.type === 'superset' || block.type === 'core') && block.exercises?.length > 1,
+  );
+}
+
+function isSetRowDone(sid) {
+  return document.getElementById(`${sid}-done`)?.classList.contains('checked') ?? false;
+}
+
+function clearSupersetHighlights(container) {
+  container?.querySelectorAll('.set-row--superset-next').forEach((row) => {
+    row.classList.remove('set-row--superset-next');
+  });
+}
+
+function setCurrentExerciseCard(card) {
+  const root = document.getElementById('workoutContent');
+  if (!root) return;
+  root.querySelectorAll('.exercise-card--current').forEach((c) => c.classList.remove('exercise-card--current'));
+  card?.classList.add('exercise-card--current');
+}
+
+function clearCurrentExerciseCards() {
+  document.getElementById('workoutContent')?.querySelectorAll('.exercise-card--current').forEach((c) => {
+    c.classList.remove('exercise-card--current');
+  });
+}
+
+function bindWorkoutInputFocus() {
+  const wc = document.getElementById('workoutContent');
+  if (!wc || wc.dataset.focusBound === '1') return;
+  wc.dataset.focusBound = '1';
+  wc.addEventListener('focusin', (e) => {
+    const input = e.target.closest?.('.set-input');
+    if (!input) return;
+    setCurrentExerciseCard(input.closest('.exercise-card'));
+  });
+}
+
+function setInitialCurrentExercise() {
+  const nextRow = document.querySelector('#workoutContent .set-row--superset-next');
+  if (nextRow) {
+    setCurrentExerciseCard(nextRow.closest('.exercise-card'));
+    return;
+  }
+  const firstOpen = document.querySelector('#workoutContent tr.set-row:not(.done)');
+  if (firstOpen) setCurrentExerciseCard(firstOpen.closest('.exercise-card'));
+}
+
+function highlightSupersetNextRow(sid) {
+  const row = document.getElementById(sid);
+  if (!row) return;
+  const block = row.closest('.superset-block');
+  clearSupersetHighlights(block);
+  row.classList.add('set-row--superset-next');
+  setCurrentExerciseCard(row.closest('.exercise-card'));
+  requestAnimationFrame(() => {
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById(`${sid}-r`)?.focus({ preventScroll: true });
+  });
+}
+
+/** First exercise in the block (same set #) not yet marked done. */
+function findNextSupersetSetSid(day, bi, setIndex) {
+  const block = getProgramBlock(bi);
+  if (!block?.exercises?.length) return null;
+  for (let ei = 0; ei < block.exercises.length; ei++) {
+    const sid = buildSetSid(day, bi, ei, setIndex);
+    if (!isSetRowDone(sid)) return sid;
+  }
+  return null;
+}
+
+function getSupersetBlockRest(block, fallbackSec) {
+  let maxRest = fallbackSec;
+  block.exercises.forEach((ex) => {
+    const name = ex.name;
+    const r = getExerciseRest(name, ex.rest);
+    if (r > maxRest) maxRest = r;
+  });
+  return maxRest;
+}
+
+function getSupersetTimerLabel(block) {
+  return block.label || (block.type === 'core' ? 'Core block' : 'Superset');
+}
+
+/**
+ * Superset/core: no rest between exercises in a round — highlight next set until the round is complete.
+ * @returns {boolean} true if rest timer was handled (started or intentionally skipped)
+ */
+function handleSupersetAfterSetDone(parsed, fallbackExName, fallbackRestSec) {
+  const block = getProgramBlock(parsed.bi);
+  if (!isSupersetStyleBlock(block)) return false;
+
+  const row = document.getElementById(buildSetSid(parsed.day, parsed.bi, parsed.ei, parsed.setIndex));
+  const blockEl = row?.closest('.superset-block');
+  const pendingSid = findNextSupersetSetSid(parsed.day, parsed.bi, parsed.setIndex);
+
+  if (pendingSid) {
+    highlightSupersetNextRow(pendingSid);
+    return true;
+  }
+
+  clearSupersetHighlights(blockEl);
+  clearCurrentExerciseCards();
+  const rest = getSupersetBlockRest(block, fallbackRestSec);
+  startTimer(getSupersetTimerLabel(block), rest);
+  return true;
 }
 
 function getInProgressSession() {
