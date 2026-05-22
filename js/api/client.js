@@ -11,6 +11,7 @@ async function loadAppConfig() {
       API_BASE = (cfg.apiUrl || FALLBACK_API_URL).replace(/\/$/, '');
       cognitoConfig = cfg.cognito || null;
       window.cognitoConfig = cognitoConfig;
+      window.appConfig = cfg;
     } catch {
       API_BASE = FALLBACK_API_URL;
       window.cognitoConfig = null;
@@ -683,8 +684,13 @@ async function handleResetPassword() {
 
 async function bootApp() {
   const email = typeof getIdTokenEmail === 'function' ? getIdTokenEmail() : null;
-  if (typeof applyProgramForEmail === 'function') applyProgramForEmail(email);
-  if (typeof updateUserChrome === 'function') updateUserChrome(getActiveProgramBundle?.());
+  if (typeof tryEnablePreviewFromUrl === 'function') tryEnablePreviewFromUrl(email);
+  if (typeof applyProgramForSession === 'function') {
+    applyProgramForSession(email);
+  } else if (typeof applyProgramForEmail === 'function') {
+    applyProgramForEmail(email);
+    if (typeof updateUserChrome === 'function') updateUserChrome(getActiveProgramBundle?.());
+  }
   state.currentDay = typeof defaultGymDayForToday === 'function'
     ? defaultGymDayForToday()
     : (DAYS[0] || 'Mon');

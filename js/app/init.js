@@ -31,11 +31,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch { /* still offline */ }
   });
   await loadAppConfig();
-  const previewProgram = new URLSearchParams(location.search).get('program');
-  if (previewProgram === 'abhi' && typeof applyProgramForEmail === 'function') {
-    applyProgramForEmail('abhi.ar@hotmail.com');
-    if (typeof updateUserChrome === 'function') updateUserChrome(getActiveProgramBundle());
-  }
   const stored = loadAuthTokens();
   if (stored?.idToken) {
     try {

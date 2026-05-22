@@ -52,10 +52,20 @@ CLIENT_ID=$(aws cloudformation describe-stacks \
   --output text)
 
 CONFIG_FILE="$(cd "$(dirname "$0")/.." && pwd)/config.json"
+ADMIN_EMAIL="${ADMIN_EMAIL:-}"
+if [[ -z "$ADMIN_EMAIL" && -f "$CONFIG_FILE" ]]; then
+  ADMIN_EMAIL=$(python3 -c "import json; c=json.load(open('$CONFIG_FILE')); e=c.get('adminEmails') or []; print((e[0] if e else '') or c.get('adminEmail',''))" 2>/dev/null || true)
+fi
+if [[ -n "$ADMIN_EMAIL" ]]; then
+  ADMIN_JSON="[\"${ADMIN_EMAIL//\"/\\\"}\"]"
+else
+  ADMIN_JSON="[]"
+fi
 cat > "$CONFIG_FILE" <<EOF
 {
   "apiUrl": "$API_URL",
   "appUrl": "https://www.auxos.app",
+  "adminEmails": $ADMIN_JSON,
   "cognito": {
     "region": "$REGION",
     "userPoolId": "$POOL_ID",
@@ -75,5 +85,8 @@ echo "Updated:       $CONFIG_FILE"
 echo ""
 echo "Create your login (once):"
 echo "  cd backend && ./create-user.sh your@email.com 'YourSecurePass123!'"
+echo ""
+echo "Admin program preview (your Cognito email only):"
+echo "  ADMIN_EMAIL=your@email.com ./deploy.sh"
 echo ""
 echo "Push to main (or redeploy Amplify) to publish config.json + index.html."

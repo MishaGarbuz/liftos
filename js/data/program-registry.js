@@ -4,6 +4,12 @@
     "abhi.ar@hotmail.com": "abhi",
   };
 
+  const PROGRAM_ID_PREVIEW_EMAIL = {
+    abhi: "abhi.ar@hotmail.com",
+  };
+
+  const PREVIEW_STORAGE_KEY = "auxos_program_preview_v1";
+
   const PROGRAMS = {
     michael: typeof MICHAEL_PROGRAM_BUNDLE !== "undefined" ? MICHAEL_PROGRAM_BUNDLE : null,
     abhi: typeof ABHI_PROGRAM_BUNDLE !== "undefined" ? ABHI_PROGRAM_BUNDLE : null,
@@ -43,6 +49,111 @@
     const id = programIdForEmail(email);
     applyProgramGlobals(PROGRAMS[id] || PROGRAMS.michael);
     return id;
+  }
+
+  function getAdminEmails() {
+    const cfg = global.appConfig || {};
+    const list = cfg.adminEmails || cfg.adminEmail || [];
+    const arr = Array.isArray(list) ? list : [list];
+    return arr.map(normalizeEmail).filter(Boolean);
+  }
+
+  function isAppAdmin(jwtEmail) {
+    const e = normalizeEmail(jwtEmail);
+    if (!e) return false;
+    return getAdminEmails().includes(e);
+  }
+
+  function clearProgramPreview() {
+    sessionStorage.removeItem(PREVIEW_STORAGE_KEY);
+  }
+
+  /** Admin-only: enable from URL bookmark after login (ignored for everyone else). */
+  function tryEnablePreviewFromUrl(jwtEmail) {
+    if (!isAppAdmin(jwtEmail)) {
+      clearProgramPreview();
+      return null;
+    }
+    const params = new URLSearchParams(location.search);
+    if (params.get("preview") === "0" || params.get("exitPreview") === "1") {
+      clearProgramPreview();
+      return null;
+    }
+    const program = params.get("program");
+    if (program && PROGRAM_ID_PREVIEW_EMAIL[program]) {
+      sessionStorage.setItem(PREVIEW_STORAGE_KEY, PROGRAM_ID_PREVIEW_EMAIL[program]);
+      return PROGRAM_ID_PREVIEW_EMAIL[program];
+    }
+    return sessionStorage.getItem(PREVIEW_STORAGE_KEY);
+  }
+
+  function getPreviewProgramEmail(jwtEmail) {
+    if (!isAppAdmin(jwtEmail)) return null;
+    return sessionStorage.getItem(PREVIEW_STORAGE_KEY);
+  }
+
+  function isAdminProgramPreview(jwtEmail) {
+    return !!getPreviewProgramEmail(jwtEmail);
+  }
+
+  function getPreviewableAthletes() {
+    return Object.entries(EMAIL_PROGRAM_MAP).map(([email, programId]) => ({
+      email,
+      programId,
+      name: (PROGRAMS[programId] && PROGRAMS[programId].displayName) || programId,
+    }));
+  }
+
+  function enableProgramPreview(programId, jwtEmail) {
+    if (!isAppAdmin(jwtEmail)) return false;
+    const email = PROGRAM_ID_PREVIEW_EMAIL[programId];
+    if (!email) return false;
+    sessionStorage.setItem(PREVIEW_STORAGE_KEY, email);
+    applyProgramForSession(jwtEmail);
+    return true;
+  }
+
+  function exitProgramPreview() {
+    sessionStorage.removeItem(PREVIEW_STORAGE_KEY);
+    const url = new URL(location.href);
+    url.searchParams.delete("program");
+    url.searchParams.delete("preview");
+    url.searchParams.delete("previewEmail");
+    url.searchParams.delete("exitPreview");
+    const qs = url.searchParams.toString();
+    location.href = url.pathname + (qs ? `?${qs}` : "") + url.hash;
+  }
+
+  /** Logged-in user email unless an admin has an active preview session. */
+  function applyProgramForSession(jwtEmail) {
+    if (!isAppAdmin(jwtEmail)) clearProgramPreview();
+    const previewEmail = getPreviewProgramEmail(jwtEmail);
+    const id = applyProgramForEmail(previewEmail || jwtEmail);
+    updateUserChrome(getActiveProgramBundle());
+    updatePreviewBanner(jwtEmail);
+    return id;
+  }
+
+  function updatePreviewBanner(jwtEmail) {
+    let el = document.getElementById("programPreviewBanner");
+    if (!isAdminProgramPreview(jwtEmail)) {
+      if (el) el.remove();
+      document.body.classList.remove("has-program-preview");
+      return;
+    }
+    document.body.classList.add("has-program-preview");
+    const bundle = getActiveProgramBundle();
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "programPreviewBanner";
+      el.className = "program-preview-banner";
+      el.setAttribute("role", "status");
+      document.body.prepend(el);
+    }
+    el.innerHTML = `
+      <span><strong>Admin preview</strong> — ${bundle?.displayName || "Athlete"} program
+      (your login data unchanged; template only)</span>
+      <button type="button" class="program-preview-exit" onclick="exitProgramPreview()">Exit preview</button>`;
   }
 
   function isDeloadWeek(week) {
@@ -174,6 +285,17 @@
   applyProgramGlobals(PROGRAMS.michael);
 
   global.applyProgramForEmail = applyProgramForEmail;
+  global.applyProgramForSession = applyProgramForSession;
+  global.isAppAdmin = isAppAdmin;
+  global.getAdminEmails = getAdminEmails;
+  global.tryEnablePreviewFromUrl = tryEnablePreviewFromUrl;
+  global.getPreviewProgramEmail = getPreviewProgramEmail;
+  global.isAdminProgramPreview = isAdminProgramPreview;
+  global.getPreviewableAthletes = getPreviewableAthletes;
+  global.enableProgramPreview = enableProgramPreview;
+  global.clearProgramPreview = clearProgramPreview;
+  global.exitProgramPreview = exitProgramPreview;
+  global.updatePreviewBanner = updatePreviewBanner;
   global.applyProgramGlobals = applyProgramGlobals;
   global.getActiveProgramBundle = getActiveProgramBundle;
   global.programIdForEmail = programIdForEmail;
