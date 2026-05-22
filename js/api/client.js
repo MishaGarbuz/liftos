@@ -408,12 +408,71 @@ async function syncSessionToApi(session, completed) {
   }
 }
 
+function normalizeCloudPrefs(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    theme: ['auto', 'dark', 'light'].includes(raw.theme) ? raw.theme : 'auto',
+    palette: raw.palette === 'forge' ? 'forge' : 'ember',
+    units: raw.units === 'lb' ? 'lb' : 'kg',
+    timerVibrate: raw.timerVibrate !== false,
+    timerNotify: raw.timerNotify !== false,
+  };
+}
+
+function prefsPayload() {
+  return normalizeCloudPrefs(state.prefs) || {
+    theme: 'auto',
+    palette: 'ember',
+    units: 'kg',
+    timerVibrate: true,
+    timerNotify: true,
+  };
+}
+
+let prefsCloudSyncTimer = null;
+
+async function syncPrefsToCloud() {
+  if (!apiOnline || !getIdToken()) return;
+  try {
+    await apiCall('PUT', '/preferences', { prefs: prefsPayload() });
+  } catch (e) {
+    console.warn('prefs cloud sync failed', e);
+  }
+}
+
+function schedulePrefsCloudSync() {
+  clearTimeout(prefsCloudSyncTimer);
+  prefsCloudSyncTimer = setTimeout(syncPrefsToCloud, 350);
+}
+
+async function loadCloudPrefs() {
+  if (!getIdToken()) return;
+  try {
+    const data = await apiCall('GET', '/preferences');
+    const cloud = normalizeCloudPrefs(data?.prefs);
+    if (!cloud) return;
+    state.prefs = { ...state.prefs, ...cloud };
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(state.prefs)); } catch { /* ignore */ }
+    if (typeof applyAppearanceFromPrefs === 'function') applyAppearanceFromPrefs();
+    if (typeof syncSettingsUi === 'function') syncSettingsUi();
+    const us = document.getElementById('unitSelect');
+    if (us) us.value = state.prefs.units || 'kg';
+    const tv = document.getElementById('timerVibrate');
+    if (tv) tv.checked = state.prefs.timerVibrate !== false;
+    const tn = document.getElementById('timerNotify');
+    if (tn) tn.checked = state.prefs.timerNotify !== false;
+  } catch (e) {
+    console.warn('prefs cloud load failed', e);
+  }
+}
+
 async function initApi() {
   loadSyncQueue();
   setSyncStatus('syncing', 'Connecting…');
   try {
     await apiCall('GET', '/summary');
     apiOnline = true;
+    await loadCloudPrefs();
     await hydrateFromApi();
     await flushSyncQueue();
     setSyncStatus('connected', 'Synced');
@@ -481,6 +540,7 @@ function loadPrefs() {
 
 function savePrefs() {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(state.prefs)); } catch { /* ignore */ }
+  schedulePrefsCloudSync();
 }
 
 function setWeightUnit(u) {
@@ -541,6 +601,15 @@ function importData() {
         }
       });
       if (data.currentWeek) state.currentWeek = data.currentWeek;
+      if (data.prefs) {
+        const merged = normalizeCloudPrefs(data.prefs);
+        if (merged) {
+          state.prefs = { ...state.prefs, ...merged };
+          savePrefs();
+          if (typeof applyAppearanceFromPrefs === 'function') applyAppearanceFromPrefs();
+          if (typeof syncSettingsUi === 'function') syncSettingsUi();
+        }
+      }
       persistLocalState();
       if (apiOnline) {
         for (const s of state.sessions) {

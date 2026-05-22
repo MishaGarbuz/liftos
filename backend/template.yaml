@@ -282,6 +282,35 @@ Resources:
             Auth:
               Authorizer: NONE
 
+  PreferencesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LiftingTracker-Preferences
+      CodeUri: functions/
+      Handler: preferences/handler.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        GetPreferences:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /preferences
+            Method: GET
+        PutPreferences:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /preferences
+            Method: PUT
+        OptionsPreferences:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /preferences
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+
   AlertTopic:
     Type: AWS::SNS::Topic
     Condition: HasAlertEmail

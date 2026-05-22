@@ -156,7 +156,7 @@ Working reference for **where features live** and **how they behave**. Update th
 
 ## Appearance (dark / light / auto)
 
-**Primary files:** `js/core/theme.js`, `css/app.css` (`[data-theme]`), `index.html` (`#themeSelect`, head flash script), `docs/BRAND.md`
+**Primary files:** `js/core/theme.js`, `css/app.css` (`[data-theme]`), Settings page, `js/api/client.js` (`loadCloudPrefs` / `syncPrefsToCloud`), `backend/functions/preferences/handler.py`
 
 **Logic**
 
@@ -164,6 +164,7 @@ Working reference for **where features live** and **how they behave**. Update th
 2. `auto` → `prefers-color-scheme` when OS reports it; else dark **19:00–07:00** local.
 3. `applyTheme()` sets `document.documentElement[data-theme]` + `theme-color` meta.
 4. `auxos-theme-change` event re-renders dashboard/progress charts.
+5. **Cloud profile:** DynamoDB `USER#{sub}` / `PREFS#profile` via `GET|PUT /preferences` (theme, palette, units, timer flags). Loaded after sign-in in `initApi`; saved on any `savePrefs()` (debounced).
 
 ---
 
