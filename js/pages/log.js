@@ -30,10 +30,11 @@ function getLastSetsForExercise(exerciseName, day) {
   return sets.length ? sets : null;
 }
 
-function formatLastTimeSummary(sets) {
+function formatLastTimeSummary(sets, ex) {
   return sets.map(s => {
-    const w = formatWeightWithUnit(s.weight);
     const rpe = s.rpe ? ` @${s.rpe}` : '';
+    if (ex && isTimedExercise(ex)) return `${s.reps}s${rpe}`;
+    const w = formatWeightWithUnit(s.weight);
     return `${w}×${s.reps}${rpe}`;
   }).join(' · ');
 }
@@ -67,6 +68,36 @@ function formatRepsTargetBadge(repsTarget) {
     .replace(/\s*(each\s*side|each|per\s*side|e\/s|e\.s\.)\s*$/i, '')
     .trim();
   return `${base} E/S`;
+}
+
+/** Holds and isometric work (repsTarget uses seconds or tempo is "hold"). */
+function isTimedExercise(ex) {
+  if (!ex) return false;
+  if (String(ex.tempo || '').toLowerCase() === 'hold') return true;
+  return /\d+\s*(?:–|-|to)\s*\d+\s*s\b|\d+\s*s(?:ec(?:ond)?s?)?\b/i.test(String(ex.repsTarget || ''));
+}
+
+function parseTimedTargetSeconds(repsTarget) {
+  const stripped = String(repsTarget || '')
+    .toLowerCase()
+    .replace(/\s*(each\s*side|each|per\s*side|e\/s|e\.s\.)\s*$/i, '')
+    .trim();
+  const range = stripped.match(/(\d+)\s*(?:–|-|to)\s*(\d+)\s*s(?:ec(?:ond)?s?)?\b/);
+  if (range) {
+    const minSec = parseInt(range[1], 10);
+    const maxSec = parseInt(range[2], 10);
+    return { minSec, maxSec, defaultSec: maxSec, label: `${minSec}–${maxSec}s` };
+  }
+  const single = stripped.match(/(\d+)\s*s(?:ec(?:ond)?s?)?\b/);
+  if (single) {
+    const sec = parseInt(single[1], 10);
+    return { minSec: sec, maxSec: sec, defaultSec: sec, label: `${sec}s` };
+  }
+  return { minSec: 30, maxSec: 30, defaultSec: 30, label: '30s' };
+}
+
+function durationColumnLabel(ex) {
+  return isTimedExercise(ex) ? 'TIME' : repsColumnLabel(ex);
 }
 
 /** Plate calculator only applies to barbell-style loading (not DB, cable, or stack machines). */
@@ -309,7 +340,33 @@ function confirmExerciseSwap() {
   showSaveToast(wasPlanned ? 'Restored planned exercise' : `Using ${chosen.name}`);
 }
 
+function buildTimedSetRowHtml(sid, setNum, ex, showCopy) {
+  const timed = parseTimedTargetSeconds(ex.repsTarget);
+  const copyBtn = showCopy
+    ? `<button type="button" class="set-copy-btn" onclick="copyPreviousSet('${sid}')" title="Copy previous set" aria-label="Copy previous set">↑</button>`
+    : '';
+  return `
+      <td class="set-num">${setNum}</td>
+      <td class="set-weight-cell"><span class="set-na">—</span></td>
+      <td class="set-hold-cell">
+        <div class="hold-set-wrap">
+          <input type="number" class="set-input set-hold-input" id="${sid}-r" placeholder="${timed.defaultSec}" min="1" max="600" inputmode="numeric" autocomplete="off" oninput="clearSetInputError('${sid}-r')" aria-label="Hold duration in seconds">
+          <span class="hold-target-label">${timed.label}</span>
+          <button type="button" class="hold-start-btn" id="${sid}-hold-start" onclick="startHoldSet('${sid}')">Start</button>
+        </div>
+      </td>
+      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" autocomplete="off"></td>
+      <td><span class="badge badge-muted" style="font-size:10px">${ex.rest}s</span></td>
+      <td class="set-actions-cell">
+        ${copyBtn}
+        <button type="button" class="set-done-btn" id="${sid}-done" onclick="markSetDone('${sid}')" aria-label="Mark done">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </td>`;
+}
+
 function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
+  if (isTimedExercise(ex)) return buildTimedSetRowHtml(sid, setNum, ex, showCopy);
   const wPlaceholder = displayWeight(targetW);
   const repsPh = repsPlaceholder(ex.repsTarget);
   const copyBtn = showCopy
@@ -659,7 +716,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
 
   const lastSets = getLastSetsForExercise(displayName, state.currentDay);
   const lastHint = lastSets
-    ? `<div class="last-time-hint"><strong>Last time:</strong> ${formatLastTimeSummary(lastSets)}</div>`
+    ? `<div class="last-time-hint"><strong>Last time:</strong> ${formatLastTimeSummary(lastSets, ex)}</div>`
     : '';
 
   let setsHtml = '';
@@ -704,7 +761,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
         <thead><tr>
           <th style="width:32px">Set</th>
           <th>${weightColumnLabel()}</th>
-          <th class="reps-col-hd">${repsColumnLabel(ex)}</th>
+          <th class="reps-col-hd">${durationColumnLabel(ex)}</th>
           <th>RPE</th>
           <th>Rest</th>
           <th></th>
@@ -798,8 +855,61 @@ function getSetRepsFromInput(sid) {
   const raw = String(el.value).trim();
   if (raw === '') return null;
   const reps = parseInt(raw, 10);
+  const card = getExerciseCard(sid);
+  const ex = card?._plannedExTemplate;
+  if (isTimedExercise(ex)) {
+    if (!Number.isFinite(reps) || reps < 1 || reps > 600) return null;
+    return reps;
+  }
   if (!Number.isFinite(reps) || reps < 1) return null;
   return reps;
+}
+
+function startHoldSet(sid) {
+  const card = getExerciseCard(sid);
+  const ex = card?._plannedExTemplate;
+  if (!ex || !isTimedExercise(ex)) return;
+  if (timerState.active) {
+    showSaveToast('Timer already running');
+    return;
+  }
+  const btn = document.getElementById(`${sid}-done`);
+  if (btn?.classList.contains('checked')) return;
+  const ctx = getCardExerciseContext(card);
+  const timed = parseTimedTargetSeconds(ex.repsTarget);
+  const inputSec = getSetRepsFromInput(sid);
+  const durationSec = inputSec || timed.defaultSec;
+  startHoldTimer(sid, ctx?.exerciseName || ex.name, durationSec);
+}
+
+function completeTimedSet(sid, elapsedSec) {
+  const row = document.getElementById(sid);
+  const rEl = document.getElementById(`${sid}-r`);
+  if (rEl) rEl.value = String(elapsedSec);
+  row?.classList.remove('set-row--hold-active');
+  const startBtn = document.getElementById(`${sid}-hold-start`);
+  if (startBtn) {
+    startBtn.disabled = false;
+    startBtn.textContent = 'Start';
+  }
+  finalizeSetDone(sid);
+}
+
+function finalizeSetDone(sid) {
+  const row = document.getElementById(sid);
+  const btn = document.getElementById(`${sid}-done`);
+  const card = getExerciseCard(sid);
+  const ctx = getCardExerciseContext(card);
+  const exName = ctx?.exerciseName || '';
+  const rest = getExerciseRest(exName, ctx?.rest || 60);
+  btn.classList.add('checked');
+  btn.setAttribute('aria-pressed', 'true');
+  row.classList.add('done');
+  saveSetToState(sid);
+  setCurrentExerciseCard(card);
+  const parsed = parseSetSid(sid);
+  const handled = parsed && handleSupersetAfterSetDone(parsed, exName, rest);
+  if (!handled) startTimer(exName, rest, null, getRestTimerContext(sid, exName));
 }
 
 /** Toggle set done; starts rest timer unless superset defers it — see getRestTimerContext. */
@@ -808,31 +918,36 @@ function markSetDone(sid) {
   const btn = document.getElementById(sid+'-done');
   const isDone = btn.classList.contains('checked');
   const card = getExerciseCard(sid);
-  const ctx = getCardExerciseContext(card);
-  const exName = ctx?.exerciseName || '';
-  const rest = getExerciseRest(exName, ctx?.rest || 60);
+  const ex = card?._plannedExTemplate;
+  if (!isDone && timerState.active && timerState.mode === 'hold' && timerState.holdSid === sid) {
+    showSaveToast('Finish the hold timer first');
+    return;
+  }
   if(!isDone) {
     const repsEl = document.getElementById(`${sid}-r`);
     const reps = getSetRepsFromInput(sid);
     if (reps === null) {
+      if (isTimedExercise(ex)) {
+        startHoldSet(sid);
+        return;
+      }
       repsEl?.classList.add('set-input--invalid');
       repsEl?.focus();
       showSaveToast('Enter reps before completing the set');
       return;
     }
     clearSetInputError(`${sid}-r`);
-    btn.classList.add('checked');
-    btn.setAttribute('aria-pressed', 'true');
-    row.classList.add('done');
-    saveSetToState(sid);
-    setCurrentExerciseCard(card);
-    const parsed = parseSetSid(sid);
-    const handled = parsed && handleSupersetAfterSetDone(parsed, exName, rest);
-    if (!handled) startTimer(exName, rest, null, getRestTimerContext(sid, exName));
+    finalizeSetDone(sid);
   } else {
     btn.classList.remove('checked');
     btn.setAttribute('aria-pressed', 'false');
     row.classList.remove('done');
+    row.classList.remove('set-row--hold-active');
+    const startBtn = document.getElementById(`${sid}-hold-start`);
+    if (startBtn) {
+      startBtn.disabled = false;
+      startBtn.textContent = 'Start';
+    }
     clearSupersetHighlights(row.closest('.superset-block'));
     setCurrentExerciseCard(card);
     removeSetFromState(sid);
@@ -1145,10 +1260,12 @@ function saveSetToState(sid) {
   const wEl = document.getElementById(sid + '-w');
   const wRaw = parseFloat(wEl?.value);
   const wPh = parseFloat(wEl?.placeholder);
-  const w = toKg(Number.isFinite(wRaw) ? wRaw : (Number.isFinite(wPh) ? wPh : 0));
+  const planned = card?._plannedExTemplate;
+  const timed = isTimedExercise(planned);
+  const w = timed ? 0 : toKg(Number.isFinite(wRaw) ? wRaw : (Number.isFinite(wPh) ? wPh : 0));
   const r = getSetRepsFromInput(sid) ?? 0;
   const rpe = parseFloat(document.getElementById(sid+'-rpe')?.value || document.getElementById(sid+'-rpe')?.placeholder || 7);
-  const e1rm = w > 0 && r > 0 ? Math.round(w * (1 + r / 30) * 10) / 10 : 0;
+  const e1rm = timed ? 0 : (w > 0 && r > 0 ? Math.round(w * (1 + r / 30) * 10) / 10 : 0);
   const setNumber = parseSetNumber(sid);
   const setData = {
     exercise: exName,

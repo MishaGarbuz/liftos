@@ -255,6 +255,16 @@ a{color:inherit;text-decoration:none}
 .set-done-btn.checked{background:rgba(34,197,94,0.15);border-color:var(--success);color:var(--success)}
 .set-done-btn.checked:hover{background:rgba(34,197,94,0.2);border-color:var(--success);color:var(--success)}
 .set-row--superset-next:not(.done) .set-done-btn:not(.checked){border-color:var(--accent);color:var(--accent);animation:supersetPulse 1.2s ease-in-out infinite}
+.set-na{font-size:13px;color:var(--text-faint);font-variant-numeric:tabular-nums}
+.set-hold-cell{min-width:148px}
+.hold-set-wrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.set-hold-input{width:52px;min-width:52px;padding:6px 8px}
+.hold-target-label{font-size:11px;font-weight:600;color:var(--text-muted);white-space:nowrap}
+.hold-start-btn{padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;background:var(--accent);color:#fff;border:none;transition:opacity var(--transition),background var(--transition)}
+.hold-start-btn:hover:not(:disabled){background:var(--accent-hover)}
+.hold-start-btn:disabled{opacity:0.55;cursor:not-allowed}
+.set-row--hold-active{background:color-mix(in srgb, var(--accent) 8%, transparent)}
+.set-row--hold-active .hold-start-btn{box-shadow:0 0 0 2px var(--accent-glow)}
 .log-page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 .log-page-header .section-heading{margin-bottom:4px}
 .log-plates-btn{flex-shrink:0;white-space:nowrap}

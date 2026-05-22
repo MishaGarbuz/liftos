@@ -371,7 +371,7 @@ async function deleteCloudSession(sessionId, setSids = []) {
 }
 
 async function syncSetToApi(setData) {
-  if (!setData.weight || !setData.reps) return;
+  if (!setData.reps) return;
   const payload = { ...setData, sessionId: setData.sessionId || activeApiSessionId || getInProgressSession()?.sessionId };
   if (!apiOnline) {
     enqueueSync({ type: 'set', payload });

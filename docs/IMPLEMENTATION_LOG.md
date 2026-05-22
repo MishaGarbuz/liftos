@@ -19,6 +19,19 @@ Working reference for **where features live** and **how they behave**. Update th
 
 ---
 
+## Timed holds (plank, hollow hold, etc.)
+
+**Primary files:** `js/pages/log.js` (`isTimedExercise`, `startHoldSet`, `completeTimedSet`), `js/features/hold-timer.js`, `js/features/timer.js`
+
+**Logic**
+
+1. Detect holds from `repsTarget` containing seconds (e.g. `30–45s`) or `tempo: "hold"`.
+2. Set row shows **TIME** column with target, optional seconds override, and **Start**.
+3. **Start** opens hold countdown overlay; on finish → vibrate + notification (same prefs as rest timer) → auto-complete set → rest timer.
+4. Checkmark without duration starts the hold timer; tap ✓ again to undo.
+
+---
+
 ## Rest timer + next exercise label
 
 **Mockup:** `canvases/rest-timer-next-exercise-mockup.canvas.tsx` (open beside chat)

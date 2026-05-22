@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<link rel="stylesheet" href="/css/app.css?v=47">
+<link rel="stylesheet" href="/css/app.css?v=48">
 </head>
 <body>
 
@@ -475,7 +475,7 @@
 <!-- REST TIMER OVERLAY -->
 <div class="timer-overlay" id="timerOverlay">
   <button class="timer-close" onclick="closeTimer()" aria-label="Close timer">✕</button>
-  <div class="timer-title">Rest Timer</div>
+  <div class="timer-title" id="timerHeading">Rest Timer</div>
   <div class="timer-exercise" id="timerExercise">—</div>
   <div class="timer-next-exercise hidden" id="timerNextExercise" aria-live="polite"></div>
   <div class="timer-ring-wrap">
@@ -613,6 +613,7 @@
 <script src="/js/ui/nav.js"></script>
 <script src="/js/pages/log.js"></script>
 <script src="/js/features/timer.js"></script>
+<script src="/js/features/hold-timer.js"></script>
 <script src="/js/pages/progress.js"></script>
 <script src="/js/pages/history.js"></script>
 <script src="/js/pages/plan.js"></script>

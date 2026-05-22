@@ -68,6 +68,7 @@ function fireRestTimerAlert() {
 }
 
 function scheduleRestTimerAlerts() {
+  if (timerState.mode === 'hold') return;
   cancelRestTimerAlerts();
   if (state.prefs?.timerNotify === false || !timerState.active || !timerState.endAt) return;
   const delay = Math.max(0, timerState.endAt - Date.now());
@@ -96,7 +97,11 @@ function syncActiveTimer() {
     return;
   }
   updateTimerDisplay();
-  scheduleRestTimerAlerts();
+  if (timerState.mode === 'hold' && typeof scheduleHoldTimerAlerts === 'function') {
+    scheduleHoldTimerAlerts(timerState.exercise);
+  } else {
+    scheduleRestTimerAlerts();
+  }
 }
 
 /** After superset rest, focus the next row (log.js highlightSupersetNextRow). */
@@ -119,14 +124,17 @@ function startTimer(exName, duration, afterRestSid, context) {
   const ctx = context || {};
   timerState = {
     active: true,
+    mode: 'rest',
     duration,
     exercise: ctx.exercise || exName,
     endAt,
     interval: null,
     afterRestSid: afterRestSid || null,
+    holdSid: null,
     nextLabel: ctx.nextLabel || null,
     notifyBody: ctx.notifyBody || '',
   };
+  if (typeof setTimerHeading === 'function') setTimerHeading('Rest Timer');
   document.getElementById('timerOverlay').classList.add('active');
   updateTimerOverlayCopy();
   updateTimerDisplay();
@@ -143,6 +151,10 @@ function startTimer(exName, duration, afterRestSid, context) {
 }
 
 function finishTimer() {
+  if (timerState.mode === 'hold') {
+    finishHoldTimer();
+    return;
+  }
   applyAfterRestHighlight();
   clearInterval(timerState.interval);
   timerState.interval = null;
@@ -186,14 +198,21 @@ function updateTimerDisplay() {
 }
 
 function closeTimer() {
+  const holdSid = timerState.holdSid;
+  if (timerState.mode === 'hold' && holdSid && typeof cancelHoldTimerUi === 'function') {
+    cancelHoldTimerUi(holdSid);
+  }
   applyAfterRestHighlight();
   clearInterval(timerState.interval);
   cancelRestTimerAlerts();
   timerState.active = false;
+  timerState.mode = 'rest';
   timerState.interval = null;
   timerState.afterRestSid = null;
+  timerState.holdSid = null;
   timerState.nextLabel = null;
   timerState.notifyBody = '';
+  if (typeof setTimerHeading === 'function') setTimerHeading('Rest Timer');
   document.getElementById('timerOverlay').classList.remove('active');
   const nextEl = document.getElementById('timerNextExercise');
   if (nextEl) nextEl.classList.add('hidden');
@@ -215,6 +234,10 @@ function resetTimer() {
 }
 
 function skipTimer() {
+  if (timerState.mode === 'hold') {
+    closeTimer();
+    return;
+  }
   closeTimer();
 }
 

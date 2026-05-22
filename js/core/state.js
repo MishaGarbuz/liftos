@@ -31,11 +31,13 @@ var cognitoConfig = null;
 /** @see js/features/timer.js — overlay UI; @see js/pages/log.js — when rest starts */
 let timerState = {
   active: false,
+  mode: 'rest',
   duration: 90,
   exercise: '',
   endAt: 0,
   interval: null,
   afterRestSid: null,
+  holdSid: null,
   nextLabel: null,
   notifyBody: '',
 };
