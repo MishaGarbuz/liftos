@@ -52,20 +52,10 @@ CLIENT_ID=$(aws cloudformation describe-stacks \
   --output text)
 
 CONFIG_FILE="$(cd "$(dirname "$0")/.." && pwd)/config.json"
-ADMIN_EMAIL="${ADMIN_EMAIL:-}"
-if [[ -z "$ADMIN_EMAIL" && -f "$CONFIG_FILE" ]]; then
-  ADMIN_EMAIL=$(python3 -c "import json; c=json.load(open('$CONFIG_FILE')); e=c.get('adminEmails') or []; print((e[0] if e else '') or c.get('adminEmail',''))" 2>/dev/null || true)
-fi
-if [[ -n "$ADMIN_EMAIL" ]]; then
-  ADMIN_JSON="[\"${ADMIN_EMAIL//\"/\\\"}\"]"
-else
-  ADMIN_JSON="[]"
-fi
 cat > "$CONFIG_FILE" <<EOF
 {
   "apiUrl": "$API_URL",
   "appUrl": "https://www.auxos.app",
-  "adminEmails": $ADMIN_JSON,
   "cognito": {
     "region": "$REGION",
     "userPoolId": "$POOL_ID",
@@ -74,7 +64,7 @@ cat > "$CONFIG_FILE" <<EOF
 }
 EOF
 
-chmod +x "$(dirname "$0")/create-user.sh"
+chmod +x "$(dirname "$0")/create-user.sh" "$(dirname "$0")/grant-admin.sh"
 
 echo ""
 echo "✅ Deploy complete!"
@@ -84,9 +74,9 @@ echo "Client ID:     $CLIENT_ID"
 echo "Updated:       $CONFIG_FILE"
 echo ""
 echo "Create your login (once):"
-echo "  cd backend && ./create-user.sh your@email.com 'YourSecurePass123!'"
+echo "  cd backend && ./create-user.sh your@email.com 'YourSecurePass123!' --admin"
 echo ""
-echo "Admin program preview (your Cognito email only):"
-echo "  ADMIN_EMAIL=your@email.com ./deploy.sh"
+echo "Grant admin to an existing user (then sign out/in for new token):"
+echo "  cd backend && ./grant-admin.sh your@email.com"
 echo ""
 echo "Push to main (or redeploy Amplify) to publish config.json + index.html."

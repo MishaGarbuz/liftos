@@ -51,17 +51,9 @@
     return id;
   }
 
-  function getAdminEmails() {
-    const cfg = global.appConfig || {};
-    const list = cfg.adminEmails || cfg.adminEmail || [];
-    const arr = Array.isArray(list) ? list : [list];
-    return arr.map(normalizeEmail).filter(Boolean);
-  }
-
-  function isAppAdmin(jwtEmail) {
-    const e = normalizeEmail(jwtEmail);
-    if (!e) return false;
-    return getAdminEmails().includes(e);
+  function isAppAdmin(_jwtEmail) {
+    if (typeof isCognitoAdmin === "function" && isCognitoAdmin()) return true;
+    return false;
   }
 
   function clearProgramPreview() {
@@ -287,7 +279,6 @@
   global.applyProgramForEmail = applyProgramForEmail;
   global.applyProgramForSession = applyProgramForSession;
   global.isAppAdmin = isAppAdmin;
-  global.getAdminEmails = getAdminEmails;
   global.tryEnablePreviewFromUrl = tryEnablePreviewFromUrl;
   global.getPreviewProgramEmail = getPreviewProgramEmail;
   global.isAdminProgramPreview = isAdminProgramPreview;

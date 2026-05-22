@@ -20,10 +20,14 @@ fi
 
 EMAIL="${1:-}"
 PASSWORD="${2:-}"
+ADD_ADMIN=false
+if [[ "${3:-}" == "--admin" ]]; then
+  ADD_ADMIN=true
+fi
 
 if [[ -z "$EMAIL" || -z "$PASSWORD" ]]; then
-  echo "Usage: ./create-user.sh <email> <password>"
-  echo "Example: ./create-user.sh you@example.com 'YourSecurePass123!'"
+  echo "Usage: ./create-user.sh <email> <password> [--admin]"
+  echo "Example: ./create-user.sh you@example.com 'YourSecurePass123!' --admin"
   exit 1
 fi
 
@@ -58,4 +62,16 @@ if [[ "$STATUS" != "CONFIRMED" ]]; then
   exit 1
 fi
 
+if [[ "$ADD_ADMIN" == "true" ]]; then
+  echo "Adding to admins group ..."
+  aws cognito-idp admin-add-user-to-group \
+    --user-pool-id "$POOL_ID" \
+    --username "$EMAIL" \
+    --group-name "${COGNITO_ADMIN_GROUP:-admins}" \
+    --region "$REGION"
+fi
+
 echo "Done ($STATUS). Sign in at https://www.auxos.app with that email and password."
+if [[ "$ADD_ADMIN" == "true" ]]; then
+  echo "User is in the admins group (program preview enabled after sign-in)."
+fi

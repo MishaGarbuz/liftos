@@ -8,9 +8,9 @@ sys.path.insert(0, '/var/task/shared')
 sys.path.insert(0, '../shared')
 
 try:
-    from shared.utils import table, resp, now_iso, get_user_pk
+    from shared.utils import table, resp, now_iso, get_user_pk, is_admin_user
 except ImportError:
-    from utils import table, resp, now_iso, get_user_pk
+    from utils import table, resp, now_iso, get_user_pk, is_admin_user
 
 PREFS_SK = 'PREFS#profile'
 
@@ -55,7 +55,11 @@ def lambda_handler(event, context):
         result = table.get_item(Key={'pk': user_pk, 'sk': PREFS_SK})
         item = result.get('Item') or {}
         prefs = sanitize_prefs(item.get('prefs'))
-        return resp(event, 200, {'prefs': prefs, 'updatedAt': item.get('updatedAt')})
+        return resp(event, 200, {
+            'prefs': prefs,
+            'updatedAt': item.get('updatedAt'),
+            'isAdmin': is_admin_user(event),
+        })
 
     if method == 'PUT':
         body = json.loads(event.get('body') or '{}')

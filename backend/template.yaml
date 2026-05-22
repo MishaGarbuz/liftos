@@ -61,6 +61,14 @@ Resources:
         - ALLOW_REFRESH_TOKEN_AUTH
       PreventUserExistenceErrors: ENABLED
 
+  CognitoAdminsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admins
+      Description: App administrators (program preview, admin tools)
+      UserPoolId: !Ref CognitoUserPool
+      Precedence: 1
+
   LiftingTrackerTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -376,6 +384,9 @@ Outputs:
   CognitoClientId:
     Description: Cognito App Client ID
     Value: !Ref CognitoUserPoolClient
+  CognitoAdminsGroupName:
+    Description: Cognito group for app administrators
+    Value: admins
   CognitoRegion:
     Description: AWS Region for Cognito
     Value: !Ref AWS::Region

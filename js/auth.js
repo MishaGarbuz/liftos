@@ -35,23 +35,45 @@
     return res.json();
   }
 
-  function getIdTokenEmail() {
+  function decodeIdTokenPayload() {
     try {
       const raw = global.sessionStorage?.getItem?.("liftos_auth_v1");
       if (!raw) return null;
       const token = JSON.parse(raw).idToken;
       if (!token) return null;
-      const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-      return payload.email || payload["cognito:username"] || null;
+      return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
     } catch {
       return null;
     }
   }
 
+  function getIdTokenEmail() {
+    const payload = decodeIdTokenPayload();
+    if (!payload) return null;
+    return payload.email || payload["cognito:username"] || null;
+  }
+
+  function getIdTokenGroups() {
+    const payload = decodeIdTokenPayload();
+    const groups = payload?.["cognito:groups"];
+    if (Array.isArray(groups)) return groups;
+    if (typeof groups === "string" && groups) {
+      return groups.split(",").map((g) => g.trim()).filter(Boolean);
+    }
+    return [];
+  }
+
+  function isCognitoAdmin() {
+    return getIdTokenGroups().includes("admins");
+  }
+
   global.validateCognitoPassword = validateCognitoPassword;
   global.PASSWORD_HINT = PASSWORD_HINT;
   global.cognitoIdpRequest = cognitoIdpRequest;
+  global.decodeIdTokenPayload = decodeIdTokenPayload;
   global.getIdTokenEmail = getIdTokenEmail;
+  global.getIdTokenGroups = getIdTokenGroups;
+  global.isCognitoAdmin = isCognitoAdmin;
 
   global.cognitoForgotPassword = async function (email) {
     const cfg = cognitoConfig();

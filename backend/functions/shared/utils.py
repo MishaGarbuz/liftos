@@ -32,6 +32,22 @@ def get_user_sub(event):
     return claims.get('sub') or ''
 
 
+def get_cognito_groups(event):
+    claims = (event.get('requestContext') or {}).get('authorizer', {}).get('claims', {})
+    groups = claims.get('cognito:groups')
+    if not groups:
+        return []
+    if isinstance(groups, list):
+        return [str(g).strip() for g in groups if g]
+    if isinstance(groups, str):
+        return [g.strip() for g in groups.split(',') if g.strip()]
+    return []
+
+
+def is_admin_user(event):
+    return 'admins' in get_cognito_groups(event)
+
+
 def get_user_pk(event):
     sub = get_user_sub(event)
     if not sub:

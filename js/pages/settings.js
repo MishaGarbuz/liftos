@@ -35,7 +35,7 @@ function renderAdminProgramPreviewSection() {
 
   section.innerHTML = `
     <h3 class="settings-group-title">Admin — program preview</h3>
-    <p class="settings-hint">Only your admin login can preview another athlete&apos;s program template. Your workout data stays on your account.</p>
+    <p class="settings-hint">Requires Cognito <strong>admins</strong> group on your account. Your workout data stays on your account; only the program template changes.</p>
     <div class="settings-field">
       <label class="settings-label" for="adminPreviewSelect">Athlete program</label>
       <select id="adminPreviewSelect" class="settings-select">${options}</select>
