@@ -666,6 +666,12 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   }
 
   const showSwap = getSuggestedExercises(ex).length > 1;
+  const block = getProgramBlock(bi);
+  const isLeadInPair = inSuper && ei === 0 && isSupersetStyleBlock(block);
+  const pairCount = block?.exercises?.length || 0;
+  const supersetRestHint = isLeadInPair
+    ? `<div class="superset-rest-hint">Rest <strong>${ex.rest}s</strong> after all ${pairCount} exercises — then start your next set here</div>`
+    : '';
 
   card.innerHTML = `
     <div class="exercise-header">
@@ -686,6 +692,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
           <span class="badge badge-muted">Rest ${ex.rest}s</span>
         </div>
         <div class="exercise-notes">${ex.notes}</div>
+        ${supersetRestHint}
         ${lastHint}
       </div>
     </div>
@@ -925,18 +932,35 @@ function findNextSupersetSetSid(day, bi, setIndex) {
   return null;
 }
 
-function getSupersetBlockRest(block, fallbackSec) {
-  let maxRest = fallbackSec;
-  block.exercises.forEach((ex) => {
-    const name = ex.name;
-    const r = getExerciseRest(name, ex.rest);
-    if (r > maxRest) maxRest = r;
-  });
-  return maxRest;
+function getSupersetLeadExerciseCard(bi) {
+  return document.getElementById(`ex-${state.currentDay}-${bi}-0`);
 }
 
-function getSupersetTimerLabel(block) {
-  return block.label || (block.type === 'core' ? 'Core block' : 'Superset');
+function getSupersetLeadExerciseName(block, bi) {
+  const card = getSupersetLeadExerciseCard(bi);
+  const ctx = getCardExerciseContext(card);
+  const planned = block?.exercises?.[0];
+  return ctx?.exerciseName || planned?.name || 'Exercise';
+}
+
+/** Rest + next row on exercise A after a full superset/core round. */
+function getSupersetRoundRestTarget(parsed) {
+  const block = getProgramBlock(parsed.bi);
+  if (!block?.exercises?.length) {
+    return { exerciseName: 'Superset', restSec: 60, nextSid: null, nextSetNum: null };
+  }
+  const leadName = getSupersetLeadExerciseName(block, parsed.bi);
+  const leadRest = getExerciseRest(leadName, block.exercises[0].rest);
+  const nextSetIndex = parsed.setIndex + 1;
+  const nextSid = buildSetSid(parsed.day, parsed.bi, 0, nextSetIndex);
+  const nextRow = document.getElementById(nextSid);
+  const hasNext = nextRow && !isSetRowDone(nextSid);
+  return {
+    exerciseName: leadName,
+    restSec: leadRest,
+    nextSid: hasNext ? nextSid : null,
+    nextSetNum: hasNext ? nextSetIndex + 1 : null,
+  };
 }
 
 /**
@@ -957,9 +981,13 @@ function handleSupersetAfterSetDone(parsed, fallbackExName, fallbackRestSec) {
   }
 
   clearSupersetHighlights(blockEl);
-  clearCurrentExerciseCards();
-  const rest = getSupersetBlockRest(block, fallbackRestSec);
-  startTimer(getSupersetTimerLabel(block), rest);
+  const target = getSupersetRoundRestTarget(parsed);
+  if (target.nextSid) setCurrentExerciseCard(getExerciseCard(target.nextSid));
+  else clearCurrentExerciseCards();
+  const timerLabel = target.nextSetNum
+    ? `${target.exerciseName} · set ${target.nextSetNum}`
+    : target.exerciseName;
+  startTimer(timerLabel, target.restSec, target.nextSid);
   return true;
 }
 

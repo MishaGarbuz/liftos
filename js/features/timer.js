@@ -78,11 +78,24 @@ function syncActiveTimer() {
   scheduleRestTimerAlerts();
 }
 
-function startTimer(exName, duration) {
+function applyAfterRestHighlight() {
+  const sid = timerState.afterRestSid;
+  timerState.afterRestSid = null;
+  if (sid && typeof highlightSupersetNextRow === 'function') highlightSupersetNextRow(sid);
+}
+
+function startTimer(exName, duration, afterRestSid) {
   if (timerState.interval) clearInterval(timerState.interval);
   cancelRestTimerAlerts();
   const endAt = Date.now() + duration * 1000;
-  timerState = { active: true, duration, exercise: exName, endAt, interval: null };
+  timerState = {
+    active: true,
+    duration,
+    exercise: exName,
+    endAt,
+    interval: null,
+    afterRestSid: afterRestSid || null,
+  };
   document.getElementById('timerOverlay').classList.add('active');
   document.getElementById('timerExercise').textContent = exName;
   updateTimerDisplay();
@@ -99,6 +112,7 @@ function startTimer(exName, duration) {
 }
 
 function finishTimer() {
+  applyAfterRestHighlight();
   clearInterval(timerState.interval);
   timerState.interval = null;
   cancelRestTimerAlerts();
@@ -141,10 +155,12 @@ function updateTimerDisplay() {
 }
 
 function closeTimer() {
+  applyAfterRestHighlight();
   clearInterval(timerState.interval);
   cancelRestTimerAlerts();
   timerState.active = false;
   timerState.interval = null;
+  timerState.afterRestSid = null;
   document.getElementById('timerOverlay').classList.remove('active');
 }
 
