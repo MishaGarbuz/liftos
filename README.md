@@ -1,6 +1,6 @@
 # LiftOS
 
-Personal lifting tracker — **https://www.liftos.net**
+Personal lifting tracker — **https://www.liftos.net** · also **https://www.auxos.app**
 
 Static SPA + API Gateway + Lambda + DynamoDB + Cognito (`ap-southeast-2`) · GitHub `MishaGarbuz/liftos`
 
@@ -33,7 +33,20 @@ cd backend
 
 Password: 12+ chars, upper, lower, number, symbol. Pool is admin-create only (no public sign-up).
 
-Sign in at https://www.liftos.net · use **Forgot password** on the login screen if needed.
+Sign in at https://www.liftos.net or https://www.auxos.app (same Cognito account and cloud data). Use **Forgot password** on the login screen if needed.
+
+## Custom domain (auxos.app)
+
+1. In **Amplify Console** → your app → **Hosting** → add custom domains `auxos.app` and `www.auxos.app`.
+2. Copy the Amplify **CloudFront domain** into `infra/route53-auxos-app.json` if it differs from the template.
+3. Apply DNS (hosted zone for `auxos.app`):
+
+```bash
+cd infra
+./apply-dns.sh <HOSTED_ZONE_ID>
+```
+
+4. Run `backend/deploy.sh` so CORS allows both production origins (`AllowedOrigins` in `backend/template.yaml`).
 
 ## Local API (optional)
 

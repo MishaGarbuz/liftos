@@ -23,11 +23,14 @@ sam package \
 
 # Deploy
 echo "Deploying CloudFormation stack..."
+ALLOWED_ORIGINS="https://www.auxos.app,https://auxos.app,https://www.liftos.net,https://liftos.net,http://localhost:5500,http://127.0.0.1:5500,http://localhost:8765,http://127.0.0.1:8765"
+
 sam deploy \
   --template-file packaged.yaml \
   --stack-name "$STACK_NAME" \
   --capabilities CAPABILITY_IAM \
   --region "$REGION" \
+  --parameter-overrides "AllowedOrigins=${ALLOWED_ORIGINS}" \
   --no-fail-on-empty-changeset
 
 API_URL=$(aws cloudformation describe-stacks \

@@ -23,3 +23,11 @@ backend/samconfig.toml
 .idea/
 .vscode/
 *.swp
+
+# Brand / design assets (local only — not deployed from main)
+brand/
+canvases/
+.cursor/
+docs/BRAND.md
+docs/PALETTE_RESEARCH.md
+js/core/theme.js

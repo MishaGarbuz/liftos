@@ -1,0 +1,26 @@
+{
+  "Comment": "Auxos — Route 53 records for auxos.app (point Amplify custom domain here first, then update AliasTarget if CloudFront changes)",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "auxos.app",
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "DNSName": "dkq2pemozpnpj.cloudfront.net",
+          "EvaluateTargetHealth": false
+        }
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "www.auxos.app",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "dkq2pemozpnpj.cloudfront.net" }]
+      }
+    }
+  ]
+}

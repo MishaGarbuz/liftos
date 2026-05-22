@@ -11,7 +11,7 @@ ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
         'ALLOWED_ORIGINS',
-        'https://www.auxos.app,https://auxos.app,http://localhost:5500,http://127.0.0.1:5500',
+        'https://www.auxos.app,https://auxos.app,https://www.liftos.net,https://liftos.net,http://localhost:5500,http://127.0.0.1:5500,http://localhost:8765,http://127.0.0.1:8765',
     ).split(',')
     if o.strip()
 ]
