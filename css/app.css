@@ -481,7 +481,11 @@ body.auth-locked .bottom-nav{display:none!important}
     scroll-padding-bottom:calc(var(--log-actions-h,64px) + var(--bottom-nav-total) + 24px);
   }
   #page-log.active .set-input,
-  #page-log.active tr.set-row{scroll-margin-top:48px;scroll-margin-bottom:20px}
+  #page-log.active tr.set-row{scroll-margin-top:56px;scroll-margin-bottom:24px}
+  html.keyboard-open #page-log.active .log-page-scroll{
+    scroll-behavior:auto;
+    overflow-anchor:none;
+  }
   #page-log.active .log-session-actions{
     position:fixed;
     left:0;

@@ -31,11 +31,14 @@ function isMobileLayout() {
   return window.matchMedia('(max-width: 768px)').matches;
 }
 
+function isFormField(el) {
+  return el?.matches?.('input, textarea, select');
+}
+
 function syncMobileViewport() {
   const innerH = window.innerHeight;
   const vv = window.visualViewport;
   const visualH = vv?.height ?? innerH;
-  // iOS shrinks visualViewport when the keyboard opens — don't collapse the fixed shell
   const keyboardOpen = document.documentElement.classList.contains('keyboard-open');
   const keyboardLikely = vv && visualH < innerH * 0.82;
   const h = keyboardOpen || keyboardLikely ? innerH : Math.round(visualH);
@@ -66,12 +69,6 @@ function updateKeyboardInset() {
   document.documentElement.style.setProperty('--keyboard-inset', `${Math.round(inset)}px`);
 }
 
-function offsetWithin(el, container) {
-  const elRect = el.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
-  return elRect.top - containerRect.top + container.scrollTop;
-}
-
 /** Shrink log scroll area to the slice above the keyboard (layout viewport stays full height on iOS). */
 function syncLogKeyboardLayout() {
   const scroller = document.querySelector('#page-log.active .log-page-scroll');
@@ -95,22 +92,29 @@ function syncLogKeyboardLayout() {
 }
 
 let logScrollRaf = 0;
+let logKbLayoutTimer = 0;
+
+function isFieldVisibleInScroller(el, scroller, pad) {
+  const fieldRect = el.getBoundingClientRect();
+  const scRect = scroller.getBoundingClientRect();
+  return fieldRect.top >= scRect.top + pad && fieldRect.bottom <= scRect.bottom - pad;
+}
 
 function scrollLogFieldIntoView(el, scroller) {
+  if (!el || !scroller) return;
   syncLogKeyboardLayout();
+  const pad = 12;
+  if (isFieldVisibleInScroller(el, scroller, pad)) return;
+
   cancelAnimationFrame(logScrollRaf);
   logScrollRaf = requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const row = el.closest('tr.set-row') || el;
-      const rowTop = offsetWithin(row, scroller);
-      const rowH = row.getBoundingClientRect().height;
-      const viewH = scroller.clientHeight;
-      const pad = 16;
-      const maxScroll = Math.max(0, scroller.scrollHeight - viewH);
-      let target = rowTop + rowH + pad - viewH;
-      target = Math.max(0, Math.min(target, maxScroll));
-      scroller.scrollTop = target;
-    });
+    const fieldRect = el.getBoundingClientRect();
+    const scRect = scroller.getBoundingClientRect();
+    if (fieldRect.bottom > scRect.bottom - pad) {
+      scroller.scrollTop += fieldRect.bottom - (scRect.bottom - pad);
+    } else if (fieldRect.top < scRect.top + pad) {
+      scroller.scrollTop -= scRect.top + pad - fieldRect.top;
+    }
   });
 }
 
@@ -139,42 +143,55 @@ function scrollFieldIntoView(el) {
   });
 }
 
+function focusLogField(el) {
+  if (!el) return;
+  try {
+    el.focus({ preventScroll: true });
+  } catch {
+    el.focus();
+  }
+  scrollFieldIntoView(el);
+}
+
+function scheduleLogKeyboardLayout() {
+  clearTimeout(logKbLayoutTimer);
+  logKbLayoutTimer = setTimeout(() => {
+    if (!document.documentElement.classList.contains('keyboard-open')) return;
+    syncLogKeyboardLayout();
+    updateKeyboardInset();
+  }, 60);
+}
+
 function bindKeyboardViewportFix() {
   const onFocusIn = (e) => {
     const t = e.target;
-    if (!t?.matches?.('input, textarea, select')) return;
+    if (!isFormField(t)) return;
     document.documentElement.classList.add('keyboard-open');
     document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
     updateKeyboardInset();
+    scheduleLogKeyboardLayout();
     requestAnimationFrame(() => scrollFieldIntoView(t));
-    if (t.closest('.log-page-scroll')) {
-      setTimeout(() => {
-        if (document.activeElement === t) scrollFieldIntoView(t);
-      }, 280);
-    }
   };
-  const onFocusOut = () => {
+  const onFocusOut = (e) => {
+    const next = e.relatedTarget;
+    if (isFormField(next) && next.closest('.log-page-scroll')) {
+      scheduleLogKeyboardLayout();
+      return;
+    }
     setTimeout(() => {
       const active = document.activeElement;
-      if (active?.matches?.('input, textarea, select')) return;
+      if (isFormField(active)) return;
       document.documentElement.classList.remove('keyboard-open');
       document.documentElement.style.setProperty('--keyboard-inset', '0px');
       document.documentElement.style.removeProperty('--log-scroll-height');
       syncMobileViewport();
-    }, 120);
+    }, 150);
   };
   document.addEventListener('focusin', onFocusIn);
   document.addEventListener('focusout', onFocusOut);
   window.visualViewport?.addEventListener('resize', () => {
     if (!document.documentElement.classList.contains('keyboard-open')) return;
-    syncLogKeyboardLayout();
-    const active = document.activeElement;
-    if (active?.matches?.('input, textarea, select') && active.closest('.log-page-scroll')) {
-      scrollLogFieldIntoView(active, active.closest('.log-page-scroll'));
-    }
-  }, { passive: true });
-  window.visualViewport?.addEventListener('scroll', () => {
-    if (document.documentElement.classList.contains('keyboard-open')) syncLogKeyboardLayout();
+    scheduleLogKeyboardLayout();
   }, { passive: true });
 }
 

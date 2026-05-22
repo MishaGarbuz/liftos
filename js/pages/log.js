@@ -323,12 +323,12 @@ function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
       <td class="set-num">${setNum}</td>
       <td class="set-weight-cell">
         <div class="${weightWrapClass}">
-          <input type="number" class="set-input set-weight-input" id="${sid}-w" placeholder="${wPlaceholder}" min="0" step="0.5" inputmode="decimal">
+          <input type="number" class="set-input set-weight-input" id="${sid}-w" placeholder="${wPlaceholder}" min="0" step="0.5" inputmode="decimal" enterkeyhint="next" autocomplete="off">
           ${plateBtn}
         </div>
       </td>
-      <td><input type="number" class="set-input" id="${sid}-r" placeholder="${repsPh}" min="1" inputmode="numeric" oninput="clearSetInputError('${sid}-r')"></td>
-      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal"></td>
+      <td><input type="number" class="set-input" id="${sid}-r" placeholder="${repsPh}" min="1" inputmode="numeric" enterkeyhint="next" autocomplete="off" oninput="clearSetInputError('${sid}-r')"></td>
+      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" autocomplete="off"></td>
       <td><span class="badge badge-muted" style="font-size:10px">${ex.rest}s</span></td>
       <td class="set-actions-cell">
         ${copyBtn}
@@ -893,6 +893,29 @@ function clearCurrentExerciseCards() {
   });
 }
 
+const SET_INPUT_FIELDS = ['w', 'r', 'rpe'];
+
+function parseSetInputId(inputId) {
+  const m = String(inputId || '').match(/^(.+)-(w|r|rpe)$/);
+  if (!m) return null;
+  return { base: m[1], field: m[2] };
+}
+
+function getNextSetInput(el) {
+  const parsed = parseSetInputId(el?.id);
+  if (!parsed) return null;
+  const fieldIdx = SET_INPUT_FIELDS.indexOf(parsed.field);
+  if (fieldIdx >= 0 && fieldIdx < SET_INPUT_FIELDS.length - 1) {
+    return document.getElementById(`${parsed.base}-${SET_INPUT_FIELDS[fieldIdx + 1]}`);
+  }
+  const row = el.closest('tr.set-row');
+  const nextRow = row?.nextElementSibling;
+  if (nextRow?.classList.contains('set-row')) {
+    return document.getElementById(`${nextRow.id}-w`);
+  }
+  return null;
+}
+
 function bindWorkoutInputFocus() {
   const wc = document.getElementById('workoutContent');
   if (!wc || wc.dataset.focusBound === '1') return;
@@ -901,6 +924,19 @@ function bindWorkoutInputFocus() {
     const input = e.target.closest?.('.set-input');
     if (!input) return;
     setCurrentExerciseCard(input.closest('.exercise-card'));
+  });
+  wc.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const input = e.target.closest?.('.set-input');
+    if (!input) return;
+    e.preventDefault();
+    const next = getNextSetInput(input);
+    if (next) {
+      if (typeof focusLogField === 'function') focusLogField(next);
+      else next.focus();
+    } else {
+      input.blur();
+    }
   });
 }
 
@@ -922,8 +958,9 @@ function highlightSupersetNextRow(sid) {
   row.classList.add('set-row--superset-next');
   setCurrentExerciseCard(row.closest('.exercise-card'));
   requestAnimationFrame(() => {
-    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    document.getElementById(`${sid}-r`)?.focus({ preventScroll: true });
+    const reps = document.getElementById(`${sid}-r`);
+    if (typeof focusLogField === 'function') focusLogField(reps);
+    else reps?.focus({ preventScroll: true });
   });
 }
 
