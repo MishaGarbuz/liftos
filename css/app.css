@@ -235,7 +235,9 @@ a{color:inherit;text-decoration:none}
 .timer-overlay.active{animation:slideUp 200ms cubic-bezier(0.16,1,0.3,1)}
 @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .timer-title{font-size:11px;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
-.timer-exercise{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px}
+.timer-exercise{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.timer-next-exercise{font-size:12px;font-weight:500;color:var(--accent);margin-bottom:10px;line-height:1.35}
+.timer-next-exercise.hidden{display:none}
 .timer-ring-wrap{display:flex;align-items:center;gap:16px}
 .timer-display{font-size:38px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);line-height:1}
 .timer-display.warning{color:var(--warning)}

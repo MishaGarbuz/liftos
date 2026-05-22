@@ -804,6 +804,7 @@ function getSetRepsFromInput(sid) {
   return reps;
 }
 
+/** Toggle set done; starts rest timer unless superset defers it — see getRestTimerContext. */
 function markSetDone(sid) {
   const row = document.getElementById(sid);
   const btn = document.getElementById(sid+'-done');
@@ -829,7 +830,7 @@ function markSetDone(sid) {
     setCurrentExerciseCard(card);
     const parsed = parseSetSid(sid);
     const handled = parsed && handleSupersetAfterSetDone(parsed, exName, rest);
-    if (!handled) startTimer(exName, rest);
+    if (!handled) startTimer(exName, rest, null, getRestTimerContext(sid, exName));
   } else {
     btn.classList.remove('checked');
     btn.setAttribute('aria-pressed', 'false');
@@ -847,6 +848,82 @@ function parseSetNumber(sid) {
 }
 
 /** @returns {{ day: string, bi: number, ei: number, setIndex: number } | null} */
+/* ── Rest timer context (overlay + push) — change copy in getRestTimerContext ── */
+
+function isLastSetOfExercise(sid) {
+  const row = document.getElementById(sid);
+  const tbody = row?.closest('tbody');
+  if (!tbody) return true;
+  const rows = tbody.querySelectorAll('tr.set-row');
+  return rows.length > 0 && rows[rows.length - 1].id === sid;
+}
+
+/** Exercise cards in DOM order (warm-up section excluded). */
+function getExerciseCardsInWorkoutOrder() {
+  return [...document.querySelectorAll('#workoutContent .exercise-card')];
+}
+
+function getExerciseNameFromCard(card) {
+  const ctx = getCardExerciseContext(card);
+  return ctx?.exerciseName || card?.querySelector('.exercise-name')?.textContent?.trim() || '';
+}
+
+/**
+ * Name of the next exercise card after completing the last set on `sid`.
+ * Superset: partner in the same round, or first exercise of the next round.
+ * Standalone: next card in the workout.
+ */
+function resolveNextExerciseNameAfter(sid) {
+  const parsed = parseSetSid(sid);
+  const currentCard = getExerciseCard(sid);
+  if (!parsed || !currentCard) return null;
+
+  const block = getProgramBlock(parsed.bi);
+  if (isSupersetStyleBlock(block)) {
+    const pendingSid = findNextSupersetSetSid(parsed.day, parsed.bi, parsed.setIndex);
+    if (pendingSid) {
+      const pendingName = getExerciseNameFromCard(getExerciseCard(pendingSid));
+      const currentName = getExerciseNameFromCard(currentCard);
+      if (pendingName && pendingName !== currentName) return pendingName;
+    }
+    const target = getSupersetRoundRestTarget(parsed);
+    if (target.nextSid) return getExerciseNameFromCard(getExerciseCard(target.nextSid)) || null;
+  }
+
+  const cards = getExerciseCardsInWorkoutOrder();
+  const idx = cards.indexOf(currentCard);
+  if (idx >= 0 && idx < cards.length - 1) return getExerciseNameFromCard(cards[idx + 1]);
+  return null;
+}
+
+/**
+ * Copy for rest overlay (#timerExercise, #timerNextExercise) and notifications.
+ * Mid-exercise sets: "start your next set". Last set: "Next: …" when another exercise follows.
+ */
+function getRestTimerContext(sid, currentExName) {
+  const exercise = currentExName || getExerciseNameFromCard(getExerciseCard(sid)) || 'Exercise';
+  const defaultNotify = `${exercise}: start your next set`;
+
+  if (!sid || !isLastSetOfExercise(sid)) {
+    return { exercise, nextLabel: null, notifyBody: defaultNotify };
+  }
+
+  const nextName = resolveNextExerciseNameAfter(sid);
+  if (nextName) {
+    return {
+      exercise,
+      nextLabel: `Next: ${nextName}`,
+      notifyBody: `${exercise}: next up — ${nextName}`,
+    };
+  }
+
+  return {
+    exercise,
+    nextLabel: 'Last exercise in workout',
+    notifyBody: `${exercise}: last exercise — go when ready`,
+  };
+}
+
 function parseSetSid(sid) {
   if (!sid || !sid.startsWith('set-')) return null;
   const parts = sid.split('-');
@@ -1032,8 +1109,9 @@ function handleSupersetAfterSetDone(parsed, fallbackExName, fallbackRestSec) {
 
   clearSupersetHighlights(blockEl);
   const target = getSupersetRoundRestTarget(parsed);
+  const completedSid = buildSetSid(parsed.day, parsed.bi, parsed.ei, parsed.setIndex);
   setCurrentExerciseCard(target.trailCard);
-  startTimer(target.exerciseName, target.restSec, target.nextSid);
+  startTimer(target.exerciseName, target.restSec, target.nextSid, getRestTimerContext(completedSid, target.exerciseName));
   return true;
 }
 

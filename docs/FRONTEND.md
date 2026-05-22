@@ -2,6 +2,8 @@
 
 Single-page app: slim `index.html` shell, styles in `css/app.css`, logic in ordered global scripts under `js/` (no bundler).
 
+**Feature logic & change log:** [IMPLEMENTATION_LOG.md](./IMPLEMENTATION_LOG.md) — rest timer, supersets, sync, clear session, swaps, etc.
+
 ## Load order
 
 Scripts run in declaration order; later files may call earlier globals.

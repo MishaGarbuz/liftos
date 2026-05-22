@@ -52,6 +52,11 @@ Serve `index.html` on localhost; app uses `http://localhost:3001` automatically.
 - Plate calculator (target weight → bar + plates per side)
 - Last-time hints, repeat last workout, rest timer alerts
 
+## Docs
+
+- [docs/FRONTEND.md](docs/FRONTEND.md) — script load order and UI conventions
+- [docs/IMPLEMENTATION_LOG.md](docs/IMPLEMENTATION_LOG.md) — **feature logic, data flow, where to edit** (rest timer, sync, supersets, etc.)
+
 ## Frontend layout
 
 See [docs/FRONTEND.md](docs/FRONTEND.md) for script load order and module boundaries (`index.html`, `css/app.css`, `js/**`).

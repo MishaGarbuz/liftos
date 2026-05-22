@@ -1,4 +1,4 @@
-const CACHE = 'liftos-shell-v39';
+const CACHE = 'liftos-shell-v40';
 let restTimerTimeout = null;
 let timerEndAt = 0;
 let timerNotifyPayload = null;
@@ -40,6 +40,7 @@ function armRestTimerNotification() {
   }, chunkMs);
 }
 
+/** Rest timer push — body set from js/features/timer.js scheduleRestTimerAlerts(). */
 self.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || typeof data !== 'object') return;

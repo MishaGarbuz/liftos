@@ -28,7 +28,17 @@ const FALLBACK_API_URL = 'https://pydkmtdqli.execute-api.ap-southeast-2.amazonaw
 const AUTH_STORAGE_KEY = 'liftos_auth_v1';
 var cognitoConfig = null;
 
-let timerState = { active: false, duration: 90, exercise: '', endAt: 0, interval: null, afterRestSid: null };
+/** @see js/features/timer.js — overlay UI; @see js/pages/log.js — when rest starts */
+let timerState = {
+  active: false,
+  duration: 90,
+  exercise: '',
+  endAt: 0,
+  interval: null,
+  afterRestSid: null,
+  nextLabel: null,
+  notifyBody: '',
+};
 let timerPageTimeout = null;
 
 /** Session date for display (dd/mm/yy). Accepts ISO yyyy-mm-dd or existing slash dates. */

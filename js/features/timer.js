@@ -1,10 +1,34 @@
-/** @file Rest timer overlay and notifications. */
+/**
+ * @file Rest timer overlay, iOS-safe SW notifications, and post-rest focus handoff.
+ *
+ * Entry: startTimer() from log.js after a set is marked done.
+ * Context (next exercise copy): built in log.js → getRestTimerContext().
+ * Push when app backgrounded: scheduleRestTimerAlerts() → sw.js TIMER_START handler.
+ */
 /* ═══════════════════════════════════════════════════════════════
    REST TIMER
 ═══════════════════════════════════════════════════════════════ */
 function getTimerRemainingSec() {
   if (!timerState.active || !timerState.endAt) return 0;
   return Math.max(0, Math.ceil((timerState.endAt - Date.now()) / 1000));
+}
+
+function getRestNotifyBody() {
+  if (timerState.notifyBody) return timerState.notifyBody;
+  return timerState.exercise
+    ? `${timerState.exercise}: start your next set`
+    : 'Start your next set';
+}
+
+function updateTimerOverlayCopy() {
+  const titleEl = document.getElementById('timerExercise');
+  const nextEl = document.getElementById('timerNextExercise');
+  if (titleEl) titleEl.textContent = timerState.exercise || '—';
+  if (nextEl) {
+    const label = timerState.nextLabel || '';
+    nextEl.textContent = label;
+    nextEl.classList.toggle('hidden', !label);
+  }
 }
 
 async function ensureTimerNotifyPermission() {
@@ -33,9 +57,7 @@ function cancelRestTimerAlerts() {
 
 function fireRestTimerAlert() {
   const title = 'Rest over — GO!';
-  const body = timerState.exercise
-    ? `${timerState.exercise}: start your next set`
-    : 'Start your next set';
+  const body = getRestNotifyBody();
   if (state.prefs?.timerNotify === false) return;
   if (document.visibilityState === 'visible' && document.hasFocus()) return;
   if ('Notification' in window && Notification.permission === 'granted') {
@@ -54,14 +76,13 @@ function scheduleRestTimerAlerts() {
   timerPageTimeout = setTimeout(fireRestTimerAlert, delay);
 
   if ('serviceWorker' in navigator) {
+    const body = getRestNotifyBody();
     navigator.serviceWorker.ready.then((reg) => {
       reg.active?.postMessage({
         type: 'TIMER_START',
         endAt: timerState.endAt,
         title: 'Rest over — GO!',
-        body: timerState.exercise
-          ? `${timerState.exercise}: start your next set`
-          : 'Start your next set',
+        body,
       });
     }).catch(() => {});
   }
@@ -78,26 +99,36 @@ function syncActiveTimer() {
   scheduleRestTimerAlerts();
 }
 
+/** After superset rest, focus the next row (log.js highlightSupersetNextRow). */
 function applyAfterRestHighlight() {
   const sid = timerState.afterRestSid;
   timerState.afterRestSid = null;
   if (sid && typeof highlightSupersetNextRow === 'function') highlightSupersetNextRow(sid);
 }
 
-function startTimer(exName, duration, afterRestSid) {
+/**
+ * @param {string} exName — exercise just worked (overlay title)
+ * @param {number} duration — rest seconds
+ * @param {string|null} afterRestSid — set row id to focus when timer ends (superset)
+ * @param {{ exercise?: string, nextLabel?: string|null, notifyBody?: string }} [context] — from log.js getRestTimerContext()
+ */
+function startTimer(exName, duration, afterRestSid, context) {
   if (timerState.interval) clearInterval(timerState.interval);
   cancelRestTimerAlerts();
   const endAt = Date.now() + duration * 1000;
+  const ctx = context || {};
   timerState = {
     active: true,
     duration,
-    exercise: exName,
+    exercise: ctx.exercise || exName,
     endAt,
     interval: null,
     afterRestSid: afterRestSid || null,
+    nextLabel: ctx.nextLabel || null,
+    notifyBody: ctx.notifyBody || '',
   };
   document.getElementById('timerOverlay').classList.add('active');
-  document.getElementById('timerExercise').textContent = exName;
+  updateTimerOverlayCopy();
   updateTimerDisplay();
   timerState.interval = setInterval(tickTimer, 250);
 
@@ -161,7 +192,11 @@ function closeTimer() {
   timerState.active = false;
   timerState.interval = null;
   timerState.afterRestSid = null;
+  timerState.nextLabel = null;
+  timerState.notifyBody = '';
   document.getElementById('timerOverlay').classList.remove('active');
+  const nextEl = document.getElementById('timerNextExercise');
+  if (nextEl) nextEl.classList.add('hidden');
 }
 
 function addTimerTime(s) {
