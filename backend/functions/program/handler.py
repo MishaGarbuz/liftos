@@ -16,8 +16,18 @@ sys.path.insert(0, '../shared')
 
 try:
     from shared.utils import table, resp, now_iso, get_user_pk, get_user_sub, is_admin_user
+    from shared.program_store import (
+        save_user_program as s3_save_user_program,
+        load_user_program as s3_load_user_program,
+        load_json_key,
+    )
 except ImportError:
     from utils import table, resp, now_iso, get_user_pk, get_user_sub, is_admin_user
+    from program_store import (
+        save_user_program as s3_save_user_program,
+        load_user_program as s3_load_user_program,
+        load_json_key,
+    )
 
 PROGRAM_SK = 'PROGRAM#active'
 EMAIL_PK = 'PROGRAM#EMAIL'
@@ -75,18 +85,60 @@ def get_user_program(user_pk):
     return result.get('Item')
 
 
-def put_user_program(user_pk, program_id, email, bundle=None):
+def put_user_program(user_pk, program_id, email, bundle=None, sub=None, source='api'):
     item = {
         'pk': user_pk,
         'sk': PROGRAM_SK,
         'programId': program_id,
         'email': normalize_email(email),
         'updatedAt': now_iso(),
+        'source': source,
     }
-    if bundle is not None:
+    if bundle is not None and sub:
+        current_key, version_key = s3_save_user_program(sub, bundle, source=source, program_id=program_id)
+        if current_key:
+            item['s3CurrentKey'] = current_key
+            item['s3VersionKey'] = version_key
+            item['storage'] = 's3'
+        else:
+            item['bundle'] = bundle
+            item['storage'] = 'dynamodb'
+    elif bundle is not None:
         item['bundle'] = bundle
+        item['storage'] = 'dynamodb'
     table.put_item(Item=item)
     return item
+
+
+def bundle_for_record(record, sub):
+    if not record:
+        return None
+    s3_key = record.get('s3CurrentKey')
+    if s3_key:
+        doc = load_json_key(s3_key)
+        if doc:
+            return doc.get('bundle')
+    if sub:
+        bundle, _doc = s3_load_user_program(sub)
+        if bundle:
+            return bundle
+    return record.get('bundle')
+
+
+def program_payload(record, sub, email, extra=None):
+    payload = {
+        'programId': record.get('programId', 'michael'),
+        'bundle': bundle_for_record(record, sub),
+        'email': record.get('email') or email,
+        'userSub': sub,
+        'source': record.get('storage', 'dynamodb'),
+        'updatedAt': record.get('updatedAt'),
+        's3CurrentKey': record.get('s3CurrentKey'),
+        'schemaVersion': 1,
+    }
+    if extra:
+        payload.update(extra)
+    return payload
 
 
 def seed_email_assignment(email):
@@ -108,18 +160,11 @@ def resolve_program_for_user(event):
             assignment = seed_email_assignment(email)
         program_id = assignment.get('programId', 'michael')
         bundle = assignment.get('bundle')
-        record = put_user_program(user_pk, program_id, email, bundle=bundle)
+        record = put_user_program(user_pk, program_id, email, bundle=bundle, sub=sub)
     elif not record:
-        record = put_user_program(user_pk, 'michael', email)
+        record = put_user_program(user_pk, 'michael', email, sub=sub)
 
-    return {
-        'programId': record.get('programId', 'michael'),
-        'bundle': record.get('bundle'),
-        'email': record.get('email') or email,
-        'userSub': sub,
-        'source': 'dynamodb',
-        'updatedAt': record.get('updatedAt'),
-    }
+    return program_payload(record, sub, email)
 
 
 def list_assignments():
@@ -133,7 +178,8 @@ def list_assignments():
         out.append({
             'email': item.get('email') or item.get('sk'),
             'programId': item.get('programId', 'michael'),
-            'hasCustomBundle': bool(item.get('bundle')),
+            'hasCustomBundle': bool(item.get('bundle') or item.get('s3CurrentKey')),
+            'storage': item.get('storage'),
             'updatedAt': item.get('updatedAt'),
         })
     return sorted(out, key=lambda x: x.get('email') or '')

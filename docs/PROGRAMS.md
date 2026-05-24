@@ -31,8 +31,17 @@ Fields: `programId` (`michael` \| `abhi`), optional `bundle` (full JSON override
 
 **Settings → Admin — program preview**: assign template by email, preview athlete view.
 
-## Next steps (optional)
+## S3 + AI Coach (scaffolded)
 
-- Store full templates in S3 (`programs/{id}.json`) and reference by key from DynamoDB
-- Coach editor UI for `bundle` JSON
-- Per-user `setsForWeek` / phase rules in stored JSON without relying on built-ins
+See **docs/AI_COACH_PROGRAMS.md** and **docs/program-schema.json**.
+
+- Private bucket `auxos-programs-{account}` with versioning
+- `users/{sub}/current.json` + `users/{sub}/versions/{timestamp}.json`
+- DynamoDB stores `s3CurrentKey` pointer (not full JSON when S3 is used)
+- `POST /coach/program` stub returns 501 until LLM integration
+
+## Next steps
+
+- Upload `templates/abhi.json` to S3
+- Coach threads in DynamoDB + LLM with schema validation
+- In-app coach chat UI

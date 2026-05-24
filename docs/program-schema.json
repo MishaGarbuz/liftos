@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auxos.app/schemas/program/v1.json",
+  "title": "AuxosTrainingProgram",
+  "description": "Portable training program document for API, S3, and AI Coach output. No executable code — app adds phaseLabel/setsForWeek from phaseRules or built-in template.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "displayName", "gymDays", "days"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "displayName": { "type": "string" },
+    "email": { "type": "string", "format": "email" },
+    "programStartDate": { "type": "string", "format": "date" },
+    "source": { "enum": ["template", "admin", "ai_coach", "import"] },
+    "gymDays": {
+      "type": "array",
+      "items": { "enum": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+      "minItems": 1
+    },
+    "deloadWeeks": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 1, "maximum": 52 }
+    },
+    "phaseRules": {
+      "type": "array",
+      "description": "App maps week number to label; deload weeks use label Deload when listed in deloadWeeks",
+      "items": {
+        "type": "object",
+        "required": ["maxWeek", "label"],
+        "properties": {
+          "maxWeek": { "type": "integer" },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "gymDayLabel": { "type": "string" },
+    "pageCopy": {
+      "type": "object",
+      "properties": {
+        "planSubtitle": { "type": "string" },
+        "scheduleSubtitle": { "type": "string" },
+        "scheduleNotesHtml": { "type": "string" }
+      }
+    },
+    "scheduleDays": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scheduleDay" }
+    },
+    "days": {
+      "type": "object",
+      "description": "Keys: Mon, Tue, Wed, Thu, Fri, Sat, Sun",
+      "additionalProperties": { "$ref": "#/$defs/trainingDay" }
+    },
+    "liftKeys": { "type": "array", "items": { "type": "string" } },
+    "liftTargets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "number" },
+        "minItems": 12,
+        "maxItems": 12
+      }
+    },
+    "planProgressions": { "type": "object" }
+  },
+  "$defs": {
+    "scheduleDay": {
+      "type": "object",
+      "required": ["day", "label", "session"],
+      "properties": {
+        "day": { "type": "string" },
+        "label": { "type": "string" },
+        "type": { "type": "string" },
+        "typeClass": { "type": "string" },
+        "session": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "trainingDay": {
+      "type": "object",
+      "required": ["label", "blocks"],
+      "properties": {
+        "label": { "type": "string" },
+        "focus": { "type": "string" },
+        "warmup": { "type": "array", "items": { "type": "string" } },
+        "blocks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/block" }
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "required": ["type", "exercises"],
+      "properties": {
+        "type": { "enum": ["superset", "core", "standalone"] },
+        "label": { "type": "string" },
+        "tier": { "enum": ["primary", "secondary", "core"] },
+        "exercises": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exercise" }
+        }
+      }
+    },
+    "exercise": {
+      "type": "object",
+      "required": ["name", "sets", "repsTarget"],
+      "properties": {
+        "name": { "type": "string" },
+        "sets": { "type": "integer", "minimum": 1 },
+        "repsTarget": { "type": "string" },
+        "weight": { "type": "number" },
+        "tempo": { "type": "string" },
+        "rpe": { "type": "string" },
+        "rest": { "type": "number", "minimum": 0 },
+        "notes": { "type": "string" },
+        "alt": { "type": "string" }
+      }
+    }
+  }
+}

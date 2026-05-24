@@ -25,8 +25,29 @@ Globals:
         LEGACY_USER_PK: USER#michael
         LEGACY_PROGRESS_PK: PROGRESS#michael
         ALLOWED_ORIGINS: !Ref AllowedOrigins
+        PROGRAMS_BUCKET: !Ref ProgramsBucket
 
 Resources:
+
+  ProgramsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'auxos-programs-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: App
+          Value: Auxos
+
 
   CognitoUserPool:
     Type: AWS::Cognito::UserPool
@@ -129,6 +150,18 @@ Resources:
                 Resource:
                   - !GetAtt LiftingTrackerTable.Arn
                   - !Sub '${LiftingTrackerTable.Arn}/index/*'
+        - PolicyName: ProgramsBucketAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt ProgramsBucket.Arn
+                  - !Sub '${ProgramsBucket.Arn}/*'
 
   LiftingTrackerApi:
     Type: AWS::Serverless::Api
@@ -362,6 +395,29 @@ Resources:
             Auth:
               Authorizer: NONE
 
+  CoachFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LiftingTracker-Coach
+      CodeUri: functions/
+      Handler: coach/handler.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        PostCoachProgram:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /coach/program
+            Method: POST
+        OptionsCoachProgram:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /coach/program
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+
   AlertTopic:
     Type: AWS::SNS::Topic
     Condition: HasAlertEmail
@@ -436,3 +492,6 @@ Outputs:
   TableName:
     Description: DynamoDB Table Name
     Value: !Ref LiftingTrackerTable
+  ProgramsBucketName:
+    Description: S3 bucket for program JSON (templates, user current, versions)
+    Value: !Ref ProgramsBucket
