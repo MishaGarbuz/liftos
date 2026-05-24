@@ -114,18 +114,26 @@ function hideNewPasswordChallenge() {
 async function cognitoRefreshToken() {
   const stored = loadAuthTokens();
   if (!stored?.refreshToken || !cognitoConfig) return null;
-  const res = await fetch(`https://cognito-idp.${cognitoConfig.region}.amazonaws.com/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-amz-json-1.1',
-      'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth',
-    },
-    body: JSON.stringify({
-      AuthFlow: 'REFRESH_TOKEN_AUTH',
-      ClientId: cognitoConfig.clientId,
-      AuthParameters: { REFRESH_TOKEN: stored.refreshToken },
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(`https://cognito-idp.${cognitoConfig.region}.amazonaws.com/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-amz-json-1.1',
+        'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth',
+      },
+      body: JSON.stringify({
+        AuthFlow: 'REFRESH_TOKEN_AUTH',
+        ClientId: cognitoConfig.clientId,
+        AuthParameters: { REFRESH_TOKEN: stored.refreshToken },
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   const data = await res.json();
   if (data.AuthenticationResult) {
     saveAuthTokens({ ...data.AuthenticationResult, RefreshToken: stored.refreshToken });
@@ -187,9 +195,14 @@ async function apiCall(method, path, body = null, timeoutMs = 12000) {
   }
 }
 
+function getLocalStorageKey() {
+  const sub = typeof getIdTokenSub === 'function' ? getIdTokenSub() : null;
+  return sub ? `${LOCAL_STORAGE_KEY}_${sub}` : LOCAL_STORAGE_KEY;
+}
+
 function persistLocalState() {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+    localStorage.setItem(getLocalStorageKey(), JSON.stringify({
       currentWeek: state.currentWeek,
       currentDay: state.currentDay,
       sessions: state.sessions,
@@ -200,7 +213,7 @@ function persistLocalState() {
 
 function loadLocalState() {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(getLocalStorageKey());
     if (!raw) return;
     const data = JSON.parse(raw);
     if (data.sessions) state.sessions = data.sessions;
@@ -233,18 +246,19 @@ function mapApiSession(s, sets) {
 
 async function hydrateFromApi() {
   const data = await apiCall('GET', '/sessions');
-  const sessions = data.sessions || [];
-  state.sessions = [];
-  for (const s of sessions) {
-    const sid = s.sessionId;
-    if (!sid) continue;
-    let sets = [];
-    try {
-      const setsRes = await apiCall('GET', `/sessions/${sid}/sets`);
-      sets = setsRes.sets || [];
-    } catch (e) { console.warn('sets load failed', sid, e); }
-    state.sessions.push(mapApiSession(s, sets));
-  }
+  const sessions = (data.sessions || []).filter((s) => s.sessionId);
+  const hydrated = await Promise.all(
+    sessions.map(async (s) => {
+      try {
+        const setsRes = await apiCall('GET', `/sessions/${encodeURIComponent(s.sessionId)}/sets`);
+        return mapApiSession(s, setsRes.sets || []);
+      } catch (e) {
+        console.warn('sets load failed', s.sessionId, e);
+        return mapApiSession(s, []);
+      }
+    }),
+  );
+  state.sessions = hydrated;
   const maxWeek = state.sessions.reduce((m, s) => Math.max(m, s.week || 1), 1);
   if (maxWeek > state.currentWeek) state.currentWeek = maxWeek;
   persistLocalState();
@@ -467,30 +481,45 @@ async function loadCloudPrefs() {
   }
 }
 
+function resolveSyncErrorStatus(err) {
+  const msg = (err?.message || '').toLowerCase();
+  if (msg.includes('not signed in') || msg.includes('session expired')) {
+    return { mode: 'offline', label: 'Sign in required' };
+  }
+  if (msg.includes('401') || msg.includes('auth')) {
+    return { mode: 'offline', label: 'Auth failed' };
+  }
+  if (msg.includes('abort') || msg.includes('timeout')) {
+    return { mode: 'local', label: 'Connection timed out' };
+  }
+  return { mode: 'local', label: 'Local only' };
+}
+
 async function initApi() {
   loadSyncQueue();
   setSyncStatus('syncing', 'Connecting…');
   try {
-    await apiCall('GET', '/summary');
-    apiOnline = true;
-    await loadCloudPrefs();
-    await hydrateFromApi();
-    await flushSyncQueue();
+    const work = (async () => {
+      await apiCall('GET', '/summary');
+      apiOnline = true;
+      await loadCloudPrefs();
+      await hydrateFromApi();
+      await flushSyncQueue();
+    })();
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Cloud sync timeout')), 30000);
+    });
+    await Promise.race([work, timeout]);
     setSyncStatus('connected', 'Synced');
   } catch (e) {
     console.warn('API unavailable, using local cache', e);
     apiOnline = false;
     loadLocalState();
-    const msg = (e?.message || '').toLowerCase();
-    if (msg.includes('not signed in') || msg.includes('session expired')) {
-      setSyncStatus('offline', 'Sign in required');
-    } else if (msg.includes('401')) {
-      setSyncStatus('offline', 'Auth failed');
-    } else {
-      setSyncStatus('local', 'Local only');
-    }
+    const st = resolveSyncErrorStatus(e);
+    setSyncStatus(st.mode, st.label);
+  } finally {
+    apiReady = true;
   }
-  apiReady = true;
 }
 
 function weightUnitLabel() { return state.prefs?.units === 'lb' ? 'lb' : 'kg'; }
@@ -682,35 +711,54 @@ async function handleResetPassword() {
   }
 }
 
+function safeRenderProgramViews() {
+  try {
+    if (typeof refreshAllProgramViews === 'function') {
+      refreshAllProgramViews();
+    } else {
+      renderDashboard();
+      renderSchedule();
+      renderPlanPage();
+      renderProgressPage();
+    }
+    renderHistory();
+  } catch (e) {
+    console.error('UI render failed', e);
+  }
+}
+
 async function bootApp() {
+  setSyncStatus('syncing', 'Connecting…');
   const email = typeof getIdTokenEmail === 'function' ? getIdTokenEmail() : null;
-  if (typeof tryEnablePreviewFromUrl === 'function') tryEnablePreviewFromUrl(email);
-  if (typeof applyProgramForSession === 'function') {
-    applyProgramForSession(email);
-  } else if (typeof applyProgramForEmail === 'function') {
-    applyProgramForEmail(email);
-    if (typeof updateUserChrome === 'function') updateUserChrome(getActiveProgramBundle?.());
-    if (typeof updateProgramPageCopy === 'function') updateProgramPageCopy(getActiveProgramBundle?.());
+  try {
+    if (typeof tryEnablePreviewFromUrl === 'function') tryEnablePreviewFromUrl(email);
+    if (typeof applyProgramForSession === 'function') {
+      applyProgramForSession(email);
+    } else if (typeof applyProgramForEmail === 'function') {
+      applyProgramForEmail(email);
+      if (typeof updateUserChrome === 'function') updateUserChrome(getActiveProgramBundle?.());
+      if (typeof updateProgramPageCopy === 'function') updateProgramPageCopy(getActiveProgramBundle?.());
+    }
+    if (typeof defaultGymDayForToday === 'function') {
+      state.currentDay = defaultGymDayForToday();
+    } else {
+      state.currentDay = (typeof DAYS !== 'undefined' && DAYS[0]) || 'Mon';
+    }
+    loadPrefs();
+    loadLocalState();
+    await initApi();
+    safeRenderProgramViews();
+  } catch (e) {
+    console.error('bootApp failed', e);
+    if (!apiReady) {
+      try { await initApi(); } catch { /* initApi sets status */ }
+    }
+    try { safeRenderProgramViews(); } catch { /* ignore */ }
   }
-  if (typeof defaultGymDayForToday === 'function') {
-    state.currentDay = defaultGymDayForToday();
-  } else {
-    state.currentDay = (typeof DAYS !== 'undefined' && DAYS[0]) || 'Mon';
+  if (!apiReady) {
+    apiReady = true;
+    setSyncStatus(apiOnline ? 'connected' : 'local', apiOnline ? 'Synced' : 'Local only');
   }
-  loadPrefs();
-  loadLocalState();
-  if (typeof refreshAllProgramViews === 'function') {
-    refreshAllProgramViews();
-  } else {
-    renderDashboard();
-    renderSchedule();
-    renderPlanPage();
-    renderProgressPage();
-  }
-  renderHistory();
-  await initApi();
-  renderDashboard();
-  renderHistory();
   requestAnimationFrame(() => {
     syncMobileViewport();
     requestAnimationFrame(syncMobileViewport);

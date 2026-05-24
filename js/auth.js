@@ -56,6 +56,11 @@
       || null;
   }
 
+  function getIdTokenSub() {
+    const payload = decodeIdTokenPayload();
+    return payload?.sub || null;
+  }
+
   function getIdTokenGroups() {
     const payload = decodeIdTokenPayload();
     const groups = payload?.["cognito:groups"];
@@ -75,6 +80,7 @@
   global.cognitoIdpRequest = cognitoIdpRequest;
   global.decodeIdTokenPayload = decodeIdTokenPayload;
   global.getIdTokenEmail = getIdTokenEmail;
+  global.getIdTokenSub = getIdTokenSub;
   global.getIdTokenGroups = getIdTokenGroups;
   global.isCognitoAdmin = isCognitoAdmin;
 

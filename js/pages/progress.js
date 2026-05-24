@@ -62,6 +62,7 @@ async function renderProgressPage() {
   sg.innerHTML = '';
   LIFT_KEYS.forEach(k=>{
     const tgts = LIFT_TARGETS[k];
+    if (!tgts?.length) return;
     const latest = tgts[Math.min(state.currentWeek-1,11)];
     const prev = tgts[Math.max(state.currentWeek-2,0)];
     const delta = latest - prev;

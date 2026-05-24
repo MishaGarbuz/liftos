@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch { /* still offline */ }
   });
   await loadAppConfig();
+  if (!loadAuthTokens()?.idToken) {
+    setSyncStatus('offline', 'Sign in to sync');
+  }
   const stored = loadAuthTokens();
   if (stored?.idToken) {
     try {
