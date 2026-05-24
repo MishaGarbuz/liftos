@@ -122,9 +122,7 @@ function renderDashboard() {
 }
 
 function startTodaysWorkout() {
-  const dayMap = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
-  const today = dayMap[new Date().getDay()];
-  if (DAYS.includes(today)) state.currentDay = today;
+  if (typeof applyLogSessionFocus === 'function') applyLogSessionFocus(true);
   const logNav =
     document.querySelector('.bottom-nav-item[data-page="log"]') ||
     document.querySelector('.nav-item[data-page="log"]');

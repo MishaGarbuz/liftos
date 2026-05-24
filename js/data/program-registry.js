@@ -345,6 +345,84 @@
     return baselineProgramWeight(ex, week);
   }
 
+  function isLogSlotCompleted(week, day) {
+    return (typeof state !== "undefined" ? state.sessions : []).some(
+      (s) => s.completed && s.week === week && s.day === day,
+    );
+  }
+
+  /** Calendar week from programStartDate (1–12), or null if not scheduled. */
+  function getCalendarProgramWeek() {
+    const startStr = getActiveProgramBundle()?.programStartDate;
+    if (!startStr) return null;
+    const parts = String(startStr).split("-");
+    if (parts.length !== 3) return null;
+    const start = Date.UTC(+parts[0], +parts[1] - 1, +parts[2]);
+    const now = new Date();
+    const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    if (todayUtc < start) return 1;
+    const diffDays = Math.floor((todayUtc - start) / 86400000);
+    return Math.min(12, Math.floor(diffDays / 7) + 1);
+  }
+
+  /**
+   * Next gym slot to log: in-progress session first, else earliest (week, day) not completed.
+   */
+  function getNextIncompleteLogSlot() {
+    const days = global.DAYS || [];
+    const sessions = typeof state !== "undefined" ? state.sessions : [];
+
+    const inProgress = sessions.filter((s) => !s.completed && days.includes(s.day));
+    if (inProgress.length) {
+      inProgress.sort((a, b) => {
+        if (b.week !== a.week) return b.week - a.week;
+        return days.indexOf(b.day) - days.indexOf(a.day);
+      });
+      return { week: inProgress[0].week, day: inProgress[0].day };
+    }
+
+    const maxFromSessions = sessions.reduce((m, s) => Math.max(m, s.week || 1), 1);
+    const calWeek = getCalendarProgramWeek();
+    const maxWeek = Math.min(12, Math.max(maxFromSessions, calWeek || 1, 1));
+
+    for (let w = 1; w <= maxWeek; w += 1) {
+      for (const d of days) {
+        if (!isLogSlotCompleted(w, d)) return { week: w, day: d };
+      }
+    }
+
+    const nextWeek = Math.min(12, maxWeek + 1);
+    return { week: nextWeek, day: days[0] || "Mon" };
+  }
+
+  function applyNextIncompleteLogSlot() {
+    const slot = getNextIncompleteLogSlot();
+    if (!slot || typeof state === "undefined") return slot;
+    state.currentWeek = slot.week;
+    state.currentDay = slot.day;
+    if (typeof persistLocalState === "function") persistLocalState();
+    return slot;
+  }
+
+  /** Prefer today's gym day when still open this calendar week; else next incomplete. */
+  function applyLogSessionFocus(preferToday = false) {
+    const days = global.DAYS || [];
+    if (preferToday) {
+      const dayMap = { 0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" };
+      const today = dayMap[new Date().getDay()];
+      if (days.includes(today)) {
+        const week = getCalendarProgramWeek() || state.currentWeek || 1;
+        if (!isLogSlotCompleted(week, today)) {
+          state.currentWeek = week;
+          state.currentDay = today;
+          if (typeof persistLocalState === "function") persistLocalState();
+          return { week, day: today };
+        }
+      }
+    }
+    return applyNextIncompleteLogSlot();
+  }
+
   function getWeekGymProgress(week) {
     const days = global.DAYS || [];
     const completedDays = new Set(
@@ -439,6 +517,10 @@
   global.getSetsForExercise = getSetsForExercise;
   global.isDeloadWeek = isDeloadWeek;
   global.getWeekGymProgress = getWeekGymProgress;
+  global.getCalendarProgramWeek = getCalendarProgramWeek;
+  global.getNextIncompleteLogSlot = getNextIncompleteLogSlot;
+  global.applyNextIncompleteLogSlot = applyNextIncompleteLogSlot;
+  global.applyLogSessionFocus = applyLogSessionFocus;
   global.renderWeekCompleteBanner = renderWeekCompleteBanner;
   global.updateUserChrome = updateUserChrome;
   global.defaultGymDayForToday = defaultGymDayForToday;

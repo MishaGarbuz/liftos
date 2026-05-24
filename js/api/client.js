@@ -259,8 +259,12 @@ async function hydrateFromApi() {
     }),
   );
   state.sessions = hydrated;
-  const maxWeek = state.sessions.reduce((m, s) => Math.max(m, s.week || 1), 1);
-  if (maxWeek > state.currentWeek) state.currentWeek = maxWeek;
+  if (typeof applyNextIncompleteLogSlot === 'function') {
+    applyNextIncompleteLogSlot();
+  } else {
+    const maxWeek = state.sessions.reduce((m, s) => Math.max(m, s.week || 1), 1);
+    if (maxWeek > state.currentWeek) state.currentWeek = maxWeek;
+  }
   persistLocalState();
 }
 
@@ -740,7 +744,9 @@ async function bootApp() {
     } else if (typeof applyProgramForSession === 'function') {
       applyProgramForSession(email);
     }
-    if (typeof defaultGymDayForToday === 'function') {
+    if (typeof applyNextIncompleteLogSlot === 'function') {
+      applyNextIncompleteLogSlot();
+    } else if (typeof defaultGymDayForToday === 'function') {
       state.currentDay = defaultGymDayForToday();
     } else {
       state.currentDay = (typeof DAYS !== 'undefined' && DAYS[0]) || 'Mon';

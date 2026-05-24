@@ -25,7 +25,10 @@ function showPage(name, navEl) {
   }
   document.getElementById('topbarPage').textContent =
     {dashboard:'Dashboard',log:'Log Workout',progress:'Progression',history:'History',plan:'12-Week Plan',schedule:'Weekly Schedule',settings:'Settings'}[name]||name;
-  if(name==='log') renderLogPage();
+  if(name==='log') {
+    if (typeof applyNextIncompleteLogSlot === 'function') applyNextIncompleteLogSlot();
+    renderLogPage();
+  }
   if(name==='progress') renderProgressPage();
   if(name==='history') renderHistory();
   if(name==='plan') renderPlanPage();
