@@ -707,14 +707,18 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   const targetW = typeof resolveTargetWeight === 'function'
     ? resolveTargetWeight(ex, state.currentWeek, state.currentDay, displayName, slotId)
     : ex.weight;
+  const block = getProgramBlock(bi);
+  const effectiveRest = typeof getEffectiveExerciseRest === 'function'
+    ? getEffectiveExerciseRest(ex, block, ei)
+    : ex.rest;
 
   card.dataset.slotId = slotId;
   card.dataset.plannedExerciseName = ex.name;
   card.dataset.plannedExerciseId = plannedId;
   card.dataset.exerciseName = displayName;
   card.dataset.exerciseId = displayId;
-  card.dataset.rest = String(ex.rest);
-  card._plannedExTemplate = ex;
+  card.dataset.rest = String(effectiveRest);
+  card._plannedExTemplate = { ...ex, rest: effectiveRest };
 
   const lastSets = getLastSetsForExercise(displayName, state.currentDay);
   const lastHint = lastSets
@@ -722,22 +726,23 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
     : '';
 
   let setsHtml = '';
-  const blockMeta = getProgramBlock(bi);
   const setCount = typeof getSetsForExercise === 'function'
-    ? getSetsForExercise(ex, blockMeta, state.currentWeek)
+    ? getSetsForExercise(ex, block, state.currentWeek)
     : ex.sets;
+  const rowEx = card._plannedExTemplate;
   for (let s = 0; s < setCount; s++) {
     const sid = `set-${state.currentDay}-${bi}-${ei}-${s}`;
-    setsHtml += `<tr class="set-row" id="${sid}">${buildSetRowHtml(sid, s + 1, targetW, ex, s > 0)}</tr>`;
+    setsHtml += `<tr class="set-row" id="${sid}">${buildSetRowHtml(sid, s + 1, targetW, rowEx, s > 0)}</tr>`;
   }
 
   const showSwap = getSuggestedExercises(ex).length > 1;
-  const block = getProgramBlock(bi);
   const lastEi = (block?.exercises?.length || 1) - 1;
   const isRestAnchor = inSuper && ei === lastEi && isSupersetStyleBlock(block);
   const supersetRestHint = isRestAnchor
-    ? `<div class="superset-rest-hint">Rest <strong>${ex.rest}s</strong> starts after you complete this exercise</div>`
-    : '';
+    ? `<div class="superset-rest-hint">Rest <strong>${effectiveRest}s</strong> starts after you complete this exercise</div>`
+    : (inSuper && isSupersetStyleBlock(block) && ei < lastEi
+      ? '<div class="superset-rest-hint">No rest — go straight to the next exercise in this superset</div>'
+      : '');
 
   card.innerHTML = `
     <div class="exercise-header">
@@ -755,7 +760,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
           <span class="badge badge-muted">${ex.sets}×${formatRepsTargetBadge(ex.repsTarget)}</span>
           <span class="badge badge-muted">Tempo ${ex.tempo}</span>
           <span class="badge badge-accent">RPE ${ex.rpe}</span>
-          <span class="badge badge-muted">Rest ${ex.rest}s</span>
+          <span class="badge badge-muted">Rest ${effectiveRest}s</span>
         </div>
         <div class="exercise-notes">${ex.notes}</div>
         ${supersetRestHint}

@@ -35,6 +35,9 @@ function renderPlanPage() {
     day.blocks.forEach(block=>{
       block.exercises.forEach((ex,ei)=>{
         const isSuper=block.type==='superset'||block.type==='core';
+        const restSec=typeof getEffectiveExerciseRest==='function'
+          ? getEffectiveExerciseRest(ex,block,ei)
+          : ex.rest;
         const wArr=PLAN_PROGRESSIONS[dayKey];
         let tw=typeof resolveTargetWeight==='function'
           ? resolveTargetWeight(ex, state.planWeek, dayKey, ex.name, null)
@@ -53,7 +56,7 @@ function renderPlanPage() {
           <td><strong>${tw}kg</strong></td>
           <td style="color:var(--text-muted)">${ex.tempo}</td>
           <td><span class="badge badge-accent">${ex.rpe}</span></td>
-          <td>${ex.rest}s</td>
+          <td>${restSec}s</td>
           <td style="font-size:11px;color:var(--text-faint);max-width:180px">${ex.alt}</td>
         </tr>`;
         first=false;
