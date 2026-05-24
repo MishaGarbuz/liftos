@@ -50,7 +50,10 @@
   function getIdTokenEmail() {
     const payload = decodeIdTokenPayload();
     if (!payload) return null;
-    return payload.email || payload["cognito:username"] || null;
+    return payload.email
+      || payload["cognito:username"]
+      || payload.preferred_username
+      || null;
   }
 
   function getIdTokenGroups() {

@@ -690,16 +690,23 @@ async function bootApp() {
   } else if (typeof applyProgramForEmail === 'function') {
     applyProgramForEmail(email);
     if (typeof updateUserChrome === 'function') updateUserChrome(getActiveProgramBundle?.());
+    if (typeof updateProgramPageCopy === 'function') updateProgramPageCopy(getActiveProgramBundle?.());
   }
-  state.currentDay = typeof defaultGymDayForToday === 'function'
-    ? defaultGymDayForToday()
-    : (DAYS[0] || 'Mon');
+  if (typeof defaultGymDayForToday === 'function') {
+    state.currentDay = defaultGymDayForToday();
+  } else {
+    state.currentDay = (typeof DAYS !== 'undefined' && DAYS[0]) || 'Mon';
+  }
   loadPrefs();
   loadLocalState();
-  renderDashboard();
-  renderSchedule();
-  renderPlanPage();
-  renderProgressPage();
+  if (typeof refreshAllProgramViews === 'function') {
+    refreshAllProgramViews();
+  } else {
+    renderDashboard();
+    renderSchedule();
+    renderPlanPage();
+    renderProgressPage();
+  }
   renderHistory();
   await initApi();
   renderDashboard();

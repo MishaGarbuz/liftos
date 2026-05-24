@@ -56,12 +56,7 @@ function startAdminProgramPreview() {
     const name = getActiveProgramBundle()?.displayName || 'Athlete';
     showSaveToast(`Previewing ${name}'s program`);
   }
-  if (typeof renderDashboard === 'function') renderDashboard();
-  if (typeof renderSchedule === 'function') renderSchedule();
-  if (typeof renderPlanPage === 'function') renderPlanPage();
-  if (typeof renderLogPage === 'function' && document.getElementById('page-log')?.classList.contains('active')) {
-    renderLogPage();
-  }
+  if (typeof refreshAllProgramViews === 'function') refreshAllProgramViews();
   renderAdminProgramPreviewSection();
 }
 

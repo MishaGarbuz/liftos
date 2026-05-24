@@ -221,9 +221,7 @@ const MICHAEL_PROGRAM_DAYS = {
   }
 };
 
-const DAYS = ["Mon","Tue","Thu","Fri"];
-
-const PLAN_PROGRESSIONS = {
+const MICHAEL_PLAN_PROGRESSIONS = {
   Mon: [
     // wk: 1-12 [incline bench, cable lateral, OHP, row, pull-up equivalent]
     // Format: [bench_w, lateral_w, ohp_w, row_w, pullup_bw]
@@ -244,8 +242,8 @@ const PLAN_PROGRESSIONS = {
   ]
 };
 
-const LIFT_KEYS = ["Bench Press","Pull-Up (E1RM)","Barbell Row","OHP","RDL","Hip Thrust"];
-const LIFT_TARGETS = {
+const MICHAEL_LIFT_KEYS = ["Bench Press","Pull-Up (E1RM)","Barbell Row","OHP","RDL","Hip Thrust"];
+const MICHAEL_LIFT_TARGETS = {
   "Bench Press":     [62,64,67,69,72,43,74,77,79,82,84,51],
   "Pull-Up (E1RM)":  [80,82,84,86,89,55,91,94,96,99,102,61],
   "Barbell Row":     [72,74,77,79,82,49,84,87,89,92,94,57],
@@ -254,7 +252,7 @@ const LIFT_TARGETS = {
   "Hip Thrust":      [62,64,67,69,72,43,74,77,79,82,84,51]
 };
 
-const SCHEDULE_DAYS = [
+const MICHAEL_SCHEDULE_DAYS = [
   { day:"Mon", label:"Monday", type:"gym", typeClass:"gym", session:"Upper A", notes:"Push · Chest / Shoulders / Triceps\n60–70 min session" },
   { day:"Tue", label:"Tuesday", type:"gym+tennis", typeClass:"tennis", session:"Lower A + Tennis", notes:"Morning: Lower A (posterior chain)\nEvening: Tennis comp night\n⚠️ NO heavy quads" },
   { day:"Wed", label:"Wednesday", type:"run/rest", typeClass:"run", session:"Zone 2 Run or Rest", notes:"≤140 bpm, 30–50 min\nOr full rest + mobility\nActive recovery" },
@@ -276,11 +274,40 @@ const MICHAEL_PROGRAM_BUNDLE = {
     if ([6, 12].includes(week)) return "Deload";
     return week <= 6 ? "Phase 1" : "Phase 2";
   },
+  pageCopy: {
+    planSubtitle: "Full periodised plan — Phase 1 (Wks 1–6) · Phase 2 (Wks 7–12)",
+    scheduleSubtitle: "Training, tennis, running, and recovery overview",
+    scheduleNotesHtml: `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:var(--text-muted);line-height:1.7">
+        <div>
+          <div style="font-weight:700;color:var(--text);margin-bottom:6px">Scheduling Rules</div>
+          <ul style="list-style:none;padding:0">
+            <li>• Monday — Upper A (Push focus, chest/shoulder/triceps)</li>
+            <li>• Tuesday — Lower A (posterior-chain, NO heavy quads) → Tennis night</li>
+            <li>• Wednesday — Tennis comp night + active recovery</li>
+            <li>• Thursday — Upper B (Pull focus, back/biceps/rear delt)</li>
+            <li>• Friday — Lower B (moderate, glute/ham) → Sat comp prep</li>
+            <li>• Saturday — Tennis comp (2×2-set doubles matches)</li>
+            <li>• Sunday — Full rest + mobility</li>
+          </ul>
+        </div>
+        <div>
+          <div style="font-weight:700;color:var(--text);margin-bottom:6px">Cardio Guidelines</div>
+          <ul style="list-style:none;padding:0">
+            <li>• Zone 2 runs: ≤140 bpm, 30–50 min (Wed or Sun)</li>
+            <li>• Half-marathon training: build to 2×/week runs</li>
+            <li>• Concurrent training: always lift BEFORE cardio</li>
+            <li>• No heavy legs day before tennis/run day</li>
+            <li>• Deload: weeks 6 and 12, cut volume ~40%</li>
+          </ul>
+        </div>
+      </div>`,
+  },
   days: MICHAEL_PROGRAM_DAYS,
-  planProgressions: PLAN_PROGRESSIONS,
-  scheduleDays: SCHEDULE_DAYS,
-  liftKeys: LIFT_KEYS,
-  liftTargets: LIFT_TARGETS,
+  planProgressions: MICHAEL_PLAN_PROGRESSIONS,
+  scheduleDays: MICHAEL_SCHEDULE_DAYS,
+  liftKeys: MICHAEL_LIFT_KEYS,
+  liftTargets: MICHAEL_LIFT_TARGETS,
   setsForWeek(_tier, week) {
     return [6, 12].includes(week) ? null : null;
   },

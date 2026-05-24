@@ -68,7 +68,10 @@ function renderDashboard() {
   if(todayCard) todayCard.classList.toggle('today-session-card--week-complete', weekProgress.isComplete);
 
   // Phase badge
-  document.getElementById('dashPhase').textContent=state.currentWeek<=6?'Phase 1':'Phase 2';
+  const phaseLabel = typeof getActiveProgramBundle === 'function'
+    ? getActiveProgramBundle().phaseLabel(state.currentWeek)
+    : (state.currentWeek <= 6 ? 'Phase 1' : 'Phase 2');
+  document.getElementById('dashPhase').textContent = phaseLabel;
 
   const chartC = typeof getChartColors === 'function' ? getChartColors() : { accent: '#ff5c35', accentFill: 'rgba(255,92,53,0.12)', targetLine: 'rgba(255,92,53,0.35)', volumeBar: 'rgba(255,92,53,0.55)' };
   const ui = typeof getChartUiColors === 'function' ? getChartUiColors() : { tick: '#8892a4', grid: 'rgba(255,255,255,0.04)' };
@@ -99,8 +102,12 @@ function renderDashboard() {
     }
   });
   if(state.dashE1rmChart) state.dashE1rmChart.destroy();
+  const primaryLift = (typeof LIFT_KEYS !== 'undefined' && LIFT_KEYS[0]) || 'Bench Press';
+  const targetSeries = (LIFT_TARGETS && LIFT_TARGETS[primaryLift]) || [];
+  const e1rmTitle = document.querySelector('#page-dashboard .card-title');
+  if (e1rmTitle) e1rmTitle.textContent = `Best E1RM Progress (${primaryLift})`;
   const e1rmDatasets=[
-    {label:'Target',data:LIFT_TARGETS['Bench Press'].map(toDisplayUnit),borderColor:chartC.targetLine,borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
+    {label:'Target',data:targetSeries.map(toDisplayUnit),borderColor:chartC.targetLine,borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
     {label:'Actual',data:e1rmActual.map(toDisplayUnit),borderColor:chartC.accent,backgroundColor:chartC.accentFill,borderWidth:2,pointRadius:3,pointBackgroundColor:chartC.accent,tension:0.4,fill:true}
   ];
   state.dashE1rmChart=new Chart(document.getElementById('dashE1rmChart'),{

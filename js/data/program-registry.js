@@ -24,16 +24,18 @@
   function programIdForEmail(email) {
     const key = normalizeEmail(email);
     if (EMAIL_PROGRAM_MAP[key]) return EMAIL_PROGRAM_MAP[key];
-    return "michael";
+    for (const [id, bundle] of Object.entries(PROGRAMS)) {
+      if (bundle?.email && normalizeEmail(bundle.email) === key) return id;
+    }
+    return key ? "michael" : "michael";
   }
 
   function getActiveProgramBundle() {
     return activeBundle || PROGRAMS.michael;
   }
 
-  function applyProgramGlobals(bundle) {
+  function syncWindowProgramGlobals(bundle) {
     if (!bundle) return;
-    activeBundle = bundle;
     global.PROGRAM = bundle.days;
     global.DAYS = bundle.gymDays.slice();
     global.SCHEDULE_DAYS = bundle.scheduleDays;
@@ -43,6 +45,38 @@
     global.DELOAD_WEEKS = bundle.deloadWeeks || [6, 12];
     global.ACTIVE_PROGRAM_ID = bundle.id;
     global.ACTIVE_PROGRAM_META = bundle;
+  }
+
+  function syncStateForProgram(bundle) {
+    if (typeof state === "undefined" || !bundle) return;
+    if (bundle.liftKeys?.length && !bundle.liftKeys.includes(state.progressLift)) {
+      state.progressLift = bundle.liftKeys[0];
+    }
+    const gymDays = bundle.gymDays || [];
+    if (gymDays.length && !gymDays.includes(state.currentDay)) {
+      state.currentDay = typeof defaultGymDayForToday === "function"
+        ? defaultGymDayForToday()
+        : gymDays[0];
+    }
+  }
+
+  function updateProgramPageCopy(bundle) {
+    const b = bundle || getActiveProgramBundle();
+    const copy = b?.pageCopy || {};
+    const planSub = document.getElementById("planPageSubtitle");
+    if (planSub) planSub.textContent = copy.planSubtitle || "";
+    const scheduleSub = document.getElementById("schedulePageSubtitle");
+    if (scheduleSub) scheduleSub.textContent = copy.scheduleSubtitle || "";
+    const notes = document.getElementById("scheduleNotesContent");
+    if (notes) notes.innerHTML = copy.scheduleNotesHtml || "";
+  }
+
+  function applyProgramGlobals(bundle) {
+    if (!bundle) return;
+    activeBundle = bundle;
+    syncWindowProgramGlobals(bundle);
+    syncStateForProgram(bundle);
+    updateProgramPageCopy(bundle);
   }
 
   function applyProgramForEmail(email) {
@@ -121,9 +155,22 @@
     if (!isAppAdmin(jwtEmail)) clearProgramPreview();
     const previewEmail = getPreviewProgramEmail(jwtEmail);
     const id = applyProgramForEmail(previewEmail || jwtEmail);
-    updateUserChrome(getActiveProgramBundle());
+    const bundle = getActiveProgramBundle();
+    updateUserChrome(bundle);
     updatePreviewBanner(jwtEmail);
+    updateProgramPageCopy(bundle);
     return id;
+  }
+
+  function refreshAllProgramViews() {
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof renderSchedule === "function") renderSchedule();
+    if (typeof renderPlanPage === "function") renderPlanPage();
+    if (typeof renderProgressPage === "function") renderProgressPage();
+    if (typeof renderLogPage === "function"
+      && document.getElementById("page-log")?.classList.contains("active")) {
+      renderLogPage();
+    }
   }
 
   function updatePreviewBanner(jwtEmail) {
@@ -287,6 +334,8 @@
   global.clearProgramPreview = clearProgramPreview;
   global.exitProgramPreview = exitProgramPreview;
   global.updatePreviewBanner = updatePreviewBanner;
+  global.updateProgramPageCopy = updateProgramPageCopy;
+  global.refreshAllProgramViews = refreshAllProgramViews;
   global.applyProgramGlobals = applyProgramGlobals;
   global.getActiveProgramBundle = getActiveProgramBundle;
   global.programIdForEmail = programIdForEmail;

@@ -276,6 +276,35 @@ const ABHI_PROGRAM_BUNDLE = {
     if (week <= 8) return "Phase 2";
     return "Phase 3";
   },
+  pageCopy: {
+    planSubtitle: "12-week plan — Phase 1 (Wks 1–4) · Phase 2 (Wks 5–8) · Phase 3 (Wks 9–12)",
+    scheduleSubtitle: "Mon / Wed / Fri gym days · rest and mobility between sessions",
+    scheduleNotesHtml: `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:var(--text-muted);line-height:1.7">
+        <div>
+          <div style="font-weight:700;color:var(--text);margin-bottom:6px">Scheduling Rules</div>
+          <ul style="list-style:none;padding:0">
+            <li>• Monday — Day A (horizontal push + vertical pull)</li>
+            <li>• Tuesday — Rest / optional hip mobility + walk</li>
+            <li>• Wednesday — Day B (squat pattern + horizontal pull)</li>
+            <li>• Thursday — Rest</li>
+            <li>• Friday — Day C (vertical push + hinge + arms)</li>
+            <li>• Saturday — Rest or light activity</li>
+            <li>• Sunday — Rest</li>
+            <li>• Any 3 non-consecutive days work; never 3 days in a row</li>
+          </ul>
+        </div>
+        <div>
+          <div style="font-weight:700;color:var(--text);margin-bottom:6px">Progression</div>
+          <ul style="list-style:none;padding:0">
+            <li>• Double progression: add reps, then load (+2.5–5 kg)</li>
+            <li>• Week 1 baselines; week 2+ targets use your logged weights</li>
+            <li>• Deload weeks 4 and 8: 2 sets, ~10–15% lighter</li>
+            <li>• Sessions ~45–50 min (warm-up + 3 supersets + core)</li>
+          </ul>
+        </div>
+      </div>`,
+  },
   days: ABHI_PROGRAM_DAYS,
   planProgressions: null,
   scheduleDays: [
