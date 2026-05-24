@@ -22,12 +22,29 @@ function getLastCompletedSessionForDay(day) {
 }
 
 function getLastSetsForExercise(exerciseName, day) {
-  const session = getLastCompletedSessionForDay(day);
-  if (!session) return null;
-  const sets = session.sets
-    .filter(s => s.exercise === exerciseName && (s.weight > 0 || s.reps > 0))
-    .sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0));
-  return sets.length ? sets : null;
+  const sessions = state.sessions.filter((s) => s.completed && s.day === day);
+  sessions.sort((a, b) => {
+    if (b.week !== a.week) return b.week - a.week;
+    const da = Date.parse(a.completedAt || a.date) || 0;
+    const db = Date.parse(b.completedAt || b.date) || 0;
+    return db - da;
+  });
+  const meta = typeof findProgramExerciseMeta === 'function'
+    ? findProgramExerciseMeta(day, exerciseName)
+    : null;
+  const template = meta?.ex || { name: exerciseName, alt: '' };
+  for (const session of sessions) {
+    const sets = session.sets
+      .filter((s) => {
+        if (!(s.weight > 0 || s.reps > 0)) return false;
+        if (s.exercise === exerciseName) return true;
+        return typeof exerciseNamesAreRelated === 'function'
+          && exerciseNamesAreRelated(s.exercise, exerciseName, template);
+      })
+      .sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0));
+    if (sets.length) return sets;
+  }
+  return null;
 }
 
 function formatLastTimeSummary(sets, ex) {
@@ -140,10 +157,36 @@ function isCardSwapped(card) {
   return card.dataset.exerciseId !== card.dataset.plannedExerciseId;
 }
 
-function formatSwapLastHint(name) {
-  const sets = getLastSetsForExercise(name, state.currentDay);
-  if (!sets) return 'No prior log for this day';
-  return `Last: ${formatLastTimeSummary(sets)}`;
+function formatSwapLastHint(name, dayKey) {
+  const day = dayKey || state.currentDay;
+  const sets = getLastSetsForExercise(name, day);
+  const scheme = typeof getExerciseLoadScheme === 'function' ? getExerciseLoadScheme(name) : null;
+  const schemeBit = scheme && scheme.short !== '—' ? ` · ${scheme.short}` : '';
+  if (!sets) return `No prior log for this day${schemeBit}`;
+  return `Last: ${formatLastTimeSummary(sets)}${schemeBit}`;
+}
+
+function updateExerciseSwapLoadWarning() {
+  const el = document.getElementById('exerciseSwapLoadWarning');
+  if (!el) return;
+  const fromName = window.exerciseSwapContext?.fromExerciseName;
+  const plannedEx = window.exerciseSwapContext?.plannedEx || swapSheetPlannedEx;
+  if (!fromName || !plannedEx || !swapSheetSelectedId) {
+    el.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+  const chosen = getSuggestedExercises(plannedEx).find((o) => o.id === swapSheetSelectedId);
+  const note = chosen && typeof getLoadSchemeChangeNote === 'function'
+    ? getLoadSchemeChangeNote(fromName, chosen.name)
+    : null;
+  if (note) {
+    el.textContent = note;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+    el.textContent = '';
+  }
 }
 
 function updateCardLastTimeHint(card, exerciseName) {
@@ -278,9 +321,17 @@ function openExerciseSwapSheet(slotId) {
   swapSheetSlotId = slotId;
   swapSheetPlannedEx = card._plannedExTemplate;
   swapSheetSelectedId = card.dataset.exerciseId;
+  window.exerciseSwapContext = {
+    mode: 'log',
+    slotId,
+    plannedEx: card._plannedExTemplate,
+    fromExerciseName: card.dataset.exerciseName,
+    dayKey: state.currentDay,
+  };
   document.getElementById('exerciseSwapSubtitle').textContent =
     `Planned: ${card.dataset.plannedExerciseName}`;
   renderExerciseSwapOptions();
+  updateExerciseSwapLoadWarning();
   document.getElementById('exerciseSwapModal')?.classList.add('open');
 }
 
@@ -289,22 +340,28 @@ function closeExerciseSwapModal() {
   swapSheetSlotId = null;
   swapSheetPlannedEx = null;
   swapSheetSelectedId = null;
+  window.exerciseSwapContext = null;
+  document.getElementById('exerciseSwapLoadWarning')?.classList.add('hidden');
 }
 
 function renderExerciseSwapOptions() {
   const list = document.getElementById('exerciseSwapList');
-  if (!list || !swapSheetPlannedEx) return;
-  const options = getSuggestedExercises(swapSheetPlannedEx);
+  const plannedEx = window.exerciseSwapContext?.plannedEx || swapSheetPlannedEx;
+  if (!list || !plannedEx) return;
+  const options = getSuggestedExercises(plannedEx);
+  const dayKey = window.exerciseSwapContext?.dayKey || state.currentDay;
   list.innerHTML = `
     <p class="exercise-swap-section-label">Suggested for this slot</p>
     ${options
       .map((opt) => {
         const selected = opt.id === swapSheetSelectedId;
+        const scheme = typeof getExerciseLoadScheme === 'function' ? getExerciseLoadScheme(opt.name) : null;
+        const loadLabel = scheme ? scheme.label : '';
         return `<button type="button" class="exercise-swap-option${selected ? ' is-selected' : ''}"
           data-exercise-id="${opt.id}"
           onclick="selectExerciseSwapOption('${opt.id}')">
           <div class="exercise-swap-option-name">${opt.name}</div>
-          <div class="exercise-swap-option-meta">${formatSwapLastHint(opt.name)}</div>
+          <div class="exercise-swap-option-meta">${formatSwapLastHint(opt.name, dayKey)}${loadLabel ? ` · ${loadLabel}` : ''}</div>
         </button>`;
       })
       .join('')}`;
@@ -315,9 +372,14 @@ function selectExerciseSwapOption(exerciseId) {
   document.querySelectorAll('#exerciseSwapList .exercise-swap-option').forEach((btn) => {
     btn.classList.toggle('is-selected', btn.dataset.exerciseId === exerciseId);
   });
+  updateExerciseSwapLoadWarning();
 }
 
 function confirmExerciseSwap() {
+  if (window.exerciseSwapContext?.mode === 'history') {
+    if (typeof confirmHistoryExerciseSwap === 'function') confirmHistoryExerciseSwap();
+    return;
+  }
   const card = getExerciseCard(swapSheetSlotId);
   if (!card || !swapSheetPlannedEx || !swapSheetSelectedId) {
     closeExerciseSwapModal();
@@ -339,6 +401,11 @@ function confirmExerciseSwap() {
   closeExerciseSwapModal();
   showSaveToast(wasPlanned ? 'Restored planned exercise' : `Using ${chosen.name}`);
 }
+
+global.openExerciseSwapSheet = openExerciseSwapSheet;
+global.closeExerciseSwapModal = closeExerciseSwapModal;
+global.confirmExerciseSwap = confirmExerciseSwap;
+global.updateExerciseSwapLoadWarning = updateExerciseSwapLoadWarning;
 
 function buildTimedSetRowHtml(sid, setNum, ex, showCopy) {
   const timed = parseTimedTargetSeconds(ex.repsTarget);

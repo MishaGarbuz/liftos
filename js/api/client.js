@@ -216,7 +216,12 @@ function loadLocalState() {
     const raw = localStorage.getItem(getLocalStorageKey());
     if (!raw) return;
     const data = JSON.parse(raw);
-    if (data.sessions) state.sessions = data.sessions;
+    if (data.sessions) {
+      state.sessions = data.sessions;
+      if (typeof inferSessionSetMetadata === 'function') {
+        state.sessions.forEach((s) => inferSessionSetMetadata(s));
+      }
+    }
     if (data.currentWeek) state.currentWeek = data.currentWeek;
     if (data.currentDay) state.currentDay = data.currentDay;
     if (data.prefs) state.prefs = { ...state.prefs, ...data.prefs };
@@ -259,6 +264,9 @@ async function hydrateFromApi() {
     }),
   );
   state.sessions = hydrated;
+  if (typeof inferSessionSetMetadata === 'function') {
+    state.sessions.forEach((s) => inferSessionSetMetadata(s));
+  }
   if (typeof applyNextIncompleteLogSlot === 'function') {
     applyNextIncompleteLogSlot();
   } else {
@@ -426,6 +434,117 @@ async function syncSessionToApi(session, completed) {
     setSyncStatus('local', 'Local only');
   }
 }
+
+/** Push session metadata + all logged sets; renames delete old DynamoDB set keys. */
+async function syncSessionSetsToApi(session, originalSnapshot, completed) {
+  if (!session?.sessionId) {
+    await syncSessionToApi(session, completed);
+    return;
+  }
+  await syncSessionToApi(session, completed);
+  const snapshot = originalSnapshot || [];
+
+  async function deleteSnap(snap) {
+    if (!(snap.weight > 0 || snap.reps > 0)) return;
+    const payload = {
+      exercise: snap.exercise,
+      setNumber: snap.setNumber,
+      sessionId: session.sessionId,
+    };
+    if (!apiOnline) {
+      enqueueSync({ type: 'deleteSet', payload });
+      return;
+    }
+    try {
+      await window._syncDeleteSetOp(payload);
+    } catch (e) {
+      console.warn('set delete sync failed', snap.exercise, e);
+      enqueueSync({ type: 'deleteSet', payload });
+      apiOnline = false;
+      setSyncStatus('local', 'Local only');
+    }
+  }
+
+  async function upsertSet(set, setNumber, snap) {
+    const oldExercise = snap?.exercise;
+    if (!apiOnline) {
+      enqueueSync({
+        type: 'set',
+        payload: {
+          ...set,
+          setNumber,
+          sessionId: session.sessionId,
+          week: session.week,
+        },
+      });
+      if (oldExercise && oldExercise !== set.exercise) {
+        enqueueSync({
+          type: 'deleteSet',
+          payload: {
+            exercise: oldExercise,
+            setNumber: snap.setNumber || setNumber,
+            sessionId: session.sessionId,
+          },
+        });
+      }
+      return;
+    }
+    try {
+      if (oldExercise && oldExercise !== set.exercise) {
+        await window._syncDeleteSetOp({
+          exercise: oldExercise,
+          setNumber: snap.setNumber || setNumber,
+          sessionId: session.sessionId,
+        });
+      }
+      await window._syncSetOp({
+        exercise: set.exercise,
+        setNumber,
+        weight: set.weight,
+        reps: set.reps,
+        rpe: set.rpe,
+        sessionId: session.sessionId,
+        week: session.week,
+      });
+    } catch (e) {
+      console.warn('set sync failed', set.exercise, e);
+      enqueueSync({
+        type: 'set',
+        payload: {
+          ...set,
+          setNumber,
+          sessionId: session.sessionId,
+          week: session.week,
+        },
+      });
+      apiOnline = false;
+      setSyncStatus('local', 'Local only');
+    }
+  }
+
+  const matchedSnap = new Set();
+  await Promise.all(
+    (session.sets || []).map((set, origIdx) => {
+      if (!(set.weight > 0 || set.reps > 0)) return null;
+      const snap = snapshot.find((s) => s._origIdx === origIdx);
+      if (snap) matchedSnap.add(snap._origIdx);
+      const setNumber = set.setNumber || snap?.setNumber || origIdx + 1;
+      set.setNumber = setNumber;
+      return upsertSet(set, setNumber, snap);
+    }).filter(Boolean),
+  );
+
+  for (const snap of snapshot) {
+    if (matchedSnap.has(snap._origIdx)) continue;
+    const stillThere = session.sets[snap._origIdx];
+    if (stillThere && stillThere.exercise === snap.exercise && (stillThere.weight > 0 || stillThere.reps > 0)) {
+      continue;
+    }
+    await deleteSnap(snap);
+  }
+}
+
+global.syncSessionSetsToApi = syncSessionSetsToApi;
 
 function normalizeCloudPrefs(raw) {
   if (!raw || typeof raw !== 'object') return null;

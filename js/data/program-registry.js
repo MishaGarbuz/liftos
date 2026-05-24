@@ -311,17 +311,33 @@
     return Math.max(...logged.map((s) => s.weight));
   }
 
+  function setMatchesExerciseHistory(set, exerciseName, slotId, plannedName, template) {
+    if (!set) return false;
+    if (slotId && set.slotId === slotId) return true;
+    if (set.exercise === exerciseName) return true;
+    if (plannedName && set.plannedExerciseName === plannedName) return true;
+    if (plannedName && set.exercise === plannedName) return true;
+    const tpl = template || { name: plannedName || exerciseName, alt: "" };
+    if (typeof exerciseNamesAreRelated === "function") {
+      if (exerciseNamesAreRelated(set.exercise, exerciseName, tpl)) return true;
+      if (plannedName && exerciseNamesAreRelated(set.exercise, plannedName, tpl)) return true;
+    }
+    return false;
+  }
+
   function weightFromPriorWeek(exerciseName, dayKey, priorWeek, slotId, plannedName) {
     const session = (typeof state !== "undefined" ? state.sessions : []).find(
       (s) => s.completed && s.week === priorWeek && s.day === dayKey,
     );
     if (!session) return null;
-    const sets = session.sets.filter((s) => {
-      if (slotId && s.slotId === slotId) return true;
-      if (s.exercise === exerciseName) return true;
-      if (plannedName && s.plannedExerciseName === plannedName) return true;
-      return false;
-    });
+    const meta = typeof findProgramExerciseMeta === "function"
+      ? findProgramExerciseMeta(dayKey, plannedName || exerciseName)
+      : null;
+    const template = meta?.ex || { name: plannedName || exerciseName, alt: "" };
+    const anchor = plannedName || template.name;
+    const sets = session.sets.filter((s) =>
+      setMatchesExerciseHistory(s, exerciseName, slotId, anchor, template),
+    );
     return maxWeightFromSessionSets(sets);
   }
 
