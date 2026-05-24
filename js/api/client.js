@@ -732,21 +732,19 @@ async function bootApp() {
   const email = typeof getIdTokenEmail === 'function' ? getIdTokenEmail() : null;
   try {
     if (typeof tryEnablePreviewFromUrl === 'function') tryEnablePreviewFromUrl(email);
-    if (typeof applyProgramForSession === 'function') {
+    loadPrefs();
+    loadLocalState();
+    await initApi();
+    if (typeof resolveProgramForUser === 'function') {
+      await resolveProgramForUser(email);
+    } else if (typeof applyProgramForSession === 'function') {
       applyProgramForSession(email);
-    } else if (typeof applyProgramForEmail === 'function') {
-      applyProgramForEmail(email);
-      if (typeof updateUserChrome === 'function') updateUserChrome(getActiveProgramBundle?.());
-      if (typeof updateProgramPageCopy === 'function') updateProgramPageCopy(getActiveProgramBundle?.());
     }
     if (typeof defaultGymDayForToday === 'function') {
       state.currentDay = defaultGymDayForToday();
     } else {
       state.currentDay = (typeof DAYS !== 'undefined' && DAYS[0]) || 'Mon';
     }
-    loadPrefs();
-    loadLocalState();
-    await initApi();
     safeRenderProgramViews();
   } catch (e) {
     console.error('bootApp failed', e);

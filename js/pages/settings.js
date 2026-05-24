@@ -1,10 +1,10 @@
 /** @file Settings page — appearance, units, timer prefs, account, admin preview. */
-function renderSettingsPage() {
+async function renderSettingsPage() {
   if (typeof syncSettingsUi === 'function') syncSettingsUi();
-  renderAdminProgramPreviewSection();
+  await renderAdminProgramPreviewSection();
 }
 
-function renderAdminProgramPreviewSection() {
+async function renderAdminProgramPreviewSection() {
   const host = document.querySelector('#page-settings .settings-stack');
   if (!host) return;
 
@@ -26,7 +26,22 @@ function renderAdminProgramPreviewSection() {
     else host.appendChild(section);
   }
 
-  const athletes = typeof getPreviewableAthletes === 'function' ? getPreviewableAthletes() : [];
+  let athletes = typeof getPreviewableAthletes === 'function' ? getPreviewableAthletes() : [];
+  if (typeof fetchProgramAssignments === 'function' && typeof apiOnline !== 'undefined' && apiOnline) {
+    try {
+      const rows = await fetchProgramAssignments();
+      if (rows.length) {
+        const catalog = typeof getProgramCatalog === 'function' ? getProgramCatalog() : {};
+        athletes = rows.map((r) => ({
+          email: r.email,
+          programId: r.programId,
+          name: (catalog[r.programId] && catalog[r.programId].displayName) || r.programId,
+        }));
+      }
+    } catch (e) {
+      console.warn('assignments load failed', e);
+    }
+  }
   const activePreview = typeof getPreviewProgramEmail === 'function' ? getPreviewProgramEmail(jwtEmail) : null;
   const options = athletes.map((a) => {
     const selected = activePreview === a.email ? ' selected' : '';
@@ -40,10 +55,37 @@ function renderAdminProgramPreviewSection() {
       <label class="settings-label" for="adminPreviewSelect">Athlete program</label>
       <select id="adminPreviewSelect" class="settings-select">${options}</select>
     </div>
+    <div class="settings-field">
+      <label class="settings-label" for="adminAssignEmail">Assign program (saved to cloud)</label>
+      <input type="email" id="adminAssignEmail" class="settings-input" placeholder="athlete@email.com">
+    </div>
+    <div class="settings-field">
+      <label class="settings-label" for="adminAssignProgram">Template</label>
+      <select id="adminAssignProgram" class="settings-select">
+        <option value="abhi">Abhi — 3-day</option>
+        <option value="michael">Michael — 4-day</option>
+      </select>
+    </div>
     <div class="settings-field" style="display:flex;gap:10px;flex-wrap:wrap">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="saveAdminProgramAssignment()">Save assignment</button>
       <button type="button" class="btn btn-primary btn-sm" onclick="startAdminProgramPreview()">Start preview</button>
       ${activePreview ? '<button type="button" class="btn btn-ghost btn-sm" onclick="exitProgramPreview()">Exit preview</button>' : ''}
     </div>`;
+}
+
+async function saveAdminProgramAssignment() {
+  const jwtEmail = typeof getIdTokenEmail === 'function' ? getIdTokenEmail() : null;
+  if (!isAppAdmin(jwtEmail)) return;
+  const email = document.getElementById('adminAssignEmail')?.value?.trim();
+  const programId = document.getElementById('adminAssignProgram')?.value;
+  if (!email || !programId || typeof saveProgramAssignment !== 'function') return;
+  try {
+    await saveProgramAssignment(email, programId);
+    if (typeof showSaveToast === 'function') showSaveToast(`Assigned ${programId} to ${email}`);
+    await renderAdminProgramPreviewSection();
+  } catch (e) {
+    alert(e.message || 'Could not save assignment');
+  }
 }
 
 function startAdminProgramPreview() {

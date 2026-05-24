@@ -79,10 +79,99 @@
     updateProgramPageCopy(bundle);
   }
 
-  function applyProgramForEmail(email) {
-    const id = programIdForEmail(email);
+  function applyProgramById(programId) {
+    const id = programId && PROGRAMS[programId] ? programId : "michael";
     applyProgramGlobals(PROGRAMS[id] || PROGRAMS.michael);
     return id;
+  }
+
+  function applyProgramForEmail(email) {
+    return applyProgramById(programIdForEmail(email));
+  }
+
+  /** Merge API-stored JSON with built-in template helpers (phaseLabel, setsForWeek). */
+  function hydrateApiBundle(raw, programId) {
+    const base = PROGRAMS[programId] || PROGRAMS.michael;
+    if (!raw || typeof raw !== "object") return applyProgramById(programId);
+    const bundle = {
+      ...base,
+      ...raw,
+      id: raw.id || programId,
+      days: raw.days || base.days,
+      scheduleDays: raw.scheduleDays || base.scheduleDays,
+      gymDays: raw.gymDays || base.gymDays,
+      deloadWeeks: raw.deloadWeeks || base.deloadWeeks,
+      liftKeys: raw.liftKeys || base.liftKeys,
+      liftTargets: raw.liftTargets || base.liftTargets,
+      planProgressions: raw.planProgressions ?? base.planProgressions,
+      pageCopy: raw.pageCopy || base.pageCopy,
+      displayName: raw.displayName || base.displayName,
+      programStartDate: raw.programStartDate ?? base.programStartDate,
+      email: raw.email ?? base.email,
+      phaseLabel: base.phaseLabel,
+      setsForWeek: base.setsForWeek,
+    };
+    applyProgramGlobals(bundle);
+    return bundle;
+  }
+
+  async function loadProgramFromCloud() {
+    if (typeof apiCall !== "function") return null;
+    const data = await apiCall("GET", "/program");
+    if (data?.bundle) {
+      hydrateApiBundle(data.bundle, data.programId || "michael");
+      return data;
+    }
+    if (data?.programId) {
+      applyProgramById(data.programId);
+      return data;
+    }
+    return null;
+  }
+
+  async function fetchProgramAssignments() {
+    if (typeof apiCall !== "function") return [];
+    const data = await apiCall("GET", "/program/assignments");
+    return data?.assignments || [];
+  }
+
+  async function saveProgramAssignment(email, programId) {
+    if (typeof apiCall !== "function") return null;
+    return apiCall("PUT", "/program", {
+      email: normalizeEmail(email),
+      programId,
+    });
+  }
+
+  /** Load program from API (DynamoDB), admin preview, or offline built-in fallback. */
+  async function resolveProgramForUser(jwtEmail) {
+    if (!isAppAdmin(jwtEmail)) clearProgramPreview();
+    const previewEmail = getPreviewProgramEmail(jwtEmail);
+    if (previewEmail && isAppAdmin(jwtEmail)) {
+      applyProgramForEmail(previewEmail);
+      updateUserChrome(getActiveProgramBundle());
+      updatePreviewBanner(jwtEmail);
+      updateProgramPageCopy(getActiveProgramBundle());
+      return { source: "preview", programId: programIdForEmail(previewEmail) };
+    }
+    if (typeof apiOnline !== "undefined" && apiOnline) {
+      try {
+        const data = await loadProgramFromCloud();
+        if (data) {
+          updateUserChrome(getActiveProgramBundle());
+          updatePreviewBanner(jwtEmail);
+          updateProgramPageCopy(getActiveProgramBundle());
+          return data;
+        }
+      } catch (e) {
+        console.warn("program API fallback to built-in", e);
+      }
+    }
+    applyProgramForEmail(jwtEmail);
+    updateUserChrome(getActiveProgramBundle());
+    updatePreviewBanner(jwtEmail);
+    updateProgramPageCopy(getActiveProgramBundle());
+    return { source: "builtin", programId: programIdForEmail(jwtEmail) };
   }
 
   function isAppAdmin(_jwtEmail) {
@@ -324,6 +413,13 @@
   applyProgramGlobals(PROGRAMS.michael);
 
   global.applyProgramForEmail = applyProgramForEmail;
+  global.applyProgramById = applyProgramById;
+  global.hydrateApiBundle = hydrateApiBundle;
+  global.loadProgramFromCloud = loadProgramFromCloud;
+  global.fetchProgramAssignments = fetchProgramAssignments;
+  global.saveProgramAssignment = saveProgramAssignment;
+  global.resolveProgramForUser = resolveProgramForUser;
+  global.getProgramCatalog = () => ({ ...PROGRAMS });
   global.applyProgramForSession = applyProgramForSession;
   global.isAppAdmin = isAppAdmin;
   global.tryEnablePreviewFromUrl = tryEnablePreviewFromUrl;

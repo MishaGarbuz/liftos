@@ -319,6 +319,49 @@ Resources:
             Auth:
               Authorizer: NONE
 
+  ProgramFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LiftingTracker-Program
+      CodeUri: functions/
+      Handler: program/handler.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        GetProgram:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /program
+            Method: GET
+        PutProgram:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /program
+            Method: PUT
+        GetProgramAssignments:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /program/assignments
+            Method: GET
+        OptionsProgram:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /program
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        OptionsProgramAssignments:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /program/assignments
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+
   AlertTopic:
     Type: AWS::SNS::Topic
     Condition: HasAlertEmail
