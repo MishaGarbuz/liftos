@@ -413,6 +413,7 @@ Resources:
       FunctionName: LiftingTracker-Coach
       CodeUri: functions/
       Handler: coach/handler.lambda_handler
+      Timeout: 45
       Role: !GetAtt LambdaRole.Arn
       Events:
         PostCoachProgram:

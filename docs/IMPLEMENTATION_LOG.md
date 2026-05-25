@@ -211,3 +211,4 @@ Working reference for **where features live** and **how they behave**. Update th
 | 2026-05-22 | Superset rest on trail exercise; core blocks sequential. |
 | 2026-05-25 | AI Coach progression targets wired end-to-end: slot-summary payload builder, week-scoped suggestion cache, athlete overrides, and log/plan target consumption. |
 | 2026-05-25 | AI Coach visibility pass: week banners, manual regenerate action, plan-row indicators, and tighter mobile log columns so the tick stays on screen. |
+| 2026-05-25 | Coach generation now waits longer, surfaces real API timeout/error messages in the UI, and gives the Bedrock-backed Lambda a 45s timeout. |

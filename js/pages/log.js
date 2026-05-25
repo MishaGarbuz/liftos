@@ -617,14 +617,14 @@ function renderCoachStatusBanner(host, week, pageName) {
 async function regenerateCoachTargets(week, pageName = 'log') {
   if (typeof ensureCoachSuggestionsForWeek !== 'function') return;
   try {
-    const doc = await ensureCoachSuggestionsForWeek(week, true);
+    const doc = await ensureCoachSuggestionsForWeek(week, true, { throwOnError: true });
     if (doc?.slots && Object.keys(doc.slots).length) {
       showSaveToast(`AI Coach targets ready for Week ${week}`);
     } else {
       alert('AI Coach targets were not generated for this week yet.');
     }
   } catch (e) {
-    alert(e.message || 'Could not generate AI Coach targets');
+    alert(`Could not generate AI Coach targets: ${e.message || 'unknown error'}`);
   }
   if (pageName === 'plan' && typeof renderPlanPage === 'function') {
     renderPlanPage();

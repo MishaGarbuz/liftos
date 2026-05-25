@@ -187,9 +187,20 @@ async function apiCall(method, path, body = null, timeoutMs = 12000) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${API_BASE}${path}`, { ...opts, signal: controller.signal });
+    let data = null;
+    try {
+      data = await res.clone().json();
+    } catch (_) {
+      data = null;
+    }
     if (res.status === 401) { signOut(); throw new Error('Session expired — sign in again'); }
-    if (!res.ok) throw new Error(`API ${res.status}`);
+    if (!res.ok) throw new Error(data?.error || data?.message || `API ${res.status}`);
     return res.json();
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw e;
   } finally {
     clearTimeout(timer);
   }
@@ -335,11 +346,12 @@ async function generateCoachSuggestions(week, refresh = false) {
     activeProgramSummary: bundle,
     weekContext: buildCoachWeekContext(week),
     athleteProfileSummary: buildCoachAthleteProfileSummary(),
-  }, 20000);
+  }, 45000);
   return cacheCoachSuggestions(data?.suggestions || data);
 }
 
-async function ensureCoachSuggestionsForWeek(week, refresh = false) {
+async function ensureCoachSuggestionsForWeek(week, refresh = false, options = {}) {
+  const throwOnError = Boolean(options?.throwOnError);
   const wk = parseInt(week, 10) || 1;
   if (wk <= 1) return null;
   if (!refresh) {
@@ -358,6 +370,7 @@ async function ensureCoachSuggestionsForWeek(week, refresh = false) {
     return await generateCoachSuggestions(wk, refresh);
   } catch (e) {
     console.warn('coach suggestions unavailable', e);
+    if (throwOnError) throw e;
     return state.coachSuggestions?.[coachWeekKey(wk)] || null;
   }
 }
