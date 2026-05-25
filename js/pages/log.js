@@ -1453,13 +1453,20 @@ function showCompleteSummary(session, doneSets) {
     prSection.style.display = 'none';
   }
   const liftList = document.getElementById('completeLiftList');
-  liftList.innerHTML = Object.entries(stats.byExercise)
-    .sort((a, b) => b[1].volume - a[1].volume)
-    .map(([name, d]) => `
+  const liftGroups = typeof groupSessionSetsByExercise === 'function'
+    ? groupSessionSetsByExercise(session, doneSets)
+    : Object.keys(stats.byExercise).map((exName) => ({ exName, sets: [] }));
+  liftList.innerHTML = liftGroups
+    .map(({ exName }) => {
+      const d = stats.byExercise[exName];
+      if (!d) return '';
+      return `
       <div class="complete-pr-item">
-        <span>${name}</span>
-        <span style="font-variant-numeric:tabular-nums">${formatSessionVolume(doneSets.filter(x => x.exercise === name))} vol · ${formatWeightWithUnit(d.bestE1rm)} E1RM</span>
-      </div>`).join('');
+        <span>${exName}</span>
+        <span style="font-variant-numeric:tabular-nums">${formatSessionVolume(doneSets.filter(x => x.exercise === exName))} vol · ${formatWeightWithUnit(d.bestE1rm)} E1RM</span>
+      </div>`;
+    })
+    .join('');
   document.getElementById('completeSummary').classList.add('open');
   document.getElementById('completeSummary').setAttribute('aria-hidden', 'false');
 }

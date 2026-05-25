@@ -192,15 +192,12 @@ function openSessionModal(idx, editMode) {
       </div>
     </div>`;
 
-  // Group sets by exercise
-  const byExercise = {};
-  doneSets.forEach((set,i)=>{
-    const name = set.exercise || 'Unknown';
-    if(!byExercise[name]) byExercise[name]=[];
-    byExercise[name].push({...set, _origIdx: s.sets.indexOf(set)});
-  });
+  const exerciseGroups = typeof groupSessionSetsByExercise === 'function'
+    ? groupSessionSetsByExercise(s, doneSets)
+    : [{ exName: 'Unknown', sets: doneSets }];
 
-  Object.entries(byExercise).forEach(([exName, sets])=>{
+  exerciseGroups.forEach(({ exName, sets: groupSets }) => {
+    const sets = groupSets.map((set) => ({ ...set, _origIdx: s.sets.indexOf(set) }));
     const planned = sets[0]?.plannedExerciseName;
     const swapped = planned && planned !== exName;
     const scheme = typeof getExerciseLoadScheme === 'function' ? getExerciseLoadScheme(exName) : null;

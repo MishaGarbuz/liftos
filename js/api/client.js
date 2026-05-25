@@ -221,6 +221,9 @@ function loadLocalState() {
       if (typeof inferSessionSetMetadata === 'function') {
         state.sessions.forEach((s) => inferSessionSetMetadata(s));
       }
+      if (typeof sortSessionSetsByWorkoutOrder === 'function') {
+        state.sessions.forEach((s) => sortSessionSetsByWorkoutOrder(s));
+      }
     }
     if (data.currentWeek) state.currentWeek = data.currentWeek;
     if (data.currentDay) state.currentDay = data.currentDay;
@@ -266,6 +269,9 @@ async function hydrateFromApi() {
   state.sessions = hydrated;
   if (typeof inferSessionSetMetadata === 'function') {
     state.sessions.forEach((s) => inferSessionSetMetadata(s));
+  }
+  if (typeof sortSessionSetsByWorkoutOrder === 'function') {
+    state.sessions.forEach((s) => sortSessionSetsByWorkoutOrder(s));
   }
   if (typeof applyNextIncompleteLogSlot === 'function') {
     applyNextIncompleteLogSlot();

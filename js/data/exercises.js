@@ -163,3 +163,59 @@ function getEffectiveExerciseRest(ex, block, exerciseIndex) {
   }
   return ex.rest ?? 0;
 }
+
+/** Sort index for an exercise name within a gym day (program block order). */
+function exerciseSortIndex(dayKey, exerciseName, slotId) {
+  const day = typeof PROGRAM !== "undefined" ? PROGRAM[dayKey] : null;
+  if (!day?.blocks) return 10000;
+  if (slotId) {
+    for (let bi = 0; bi < day.blocks.length; bi += 1) {
+      const block = day.blocks[bi];
+      const exercises = block.exercises || [];
+      for (let ei = 0; ei < exercises.length; ei += 1) {
+        if (getExerciseSlotId(dayKey, bi, ei) === slotId) {
+          return bi * 100 + ei;
+        }
+      }
+    }
+  }
+  const meta = findProgramExerciseMeta(dayKey, exerciseName);
+  if (meta) {
+    const parts = (meta.slotId || "").split("-");
+    const bi = parseInt(parts[1], 10);
+    const ei = parseInt(parts[2], 10);
+    if (!Number.isNaN(bi) && !Number.isNaN(ei)) return bi * 100 + ei;
+  }
+  return 10000 + String(exerciseName || "").localeCompare("");
+}
+
+function sortSessionSetsByWorkoutOrder(session) {
+  if (!session?.sets?.length || !session.day) return;
+  session.sets.sort((a, b) => {
+    const oa = exerciseSortIndex(session.day, a.exercise, a.slotId);
+    const ob = exerciseSortIndex(session.day, b.exercise, b.slotId);
+    if (oa !== ob) return oa - ob;
+    return (a.setNumber || 0) - (b.setNumber || 0);
+  });
+}
+
+/** Group sets by exercise in program order (not alphabetical). */
+function groupSessionSetsByExercise(session, sets) {
+  const list = sets || session?.sets || [];
+  const byName = new Map();
+  list.forEach((set) => {
+    const name = set.exercise || "Unknown";
+    if (!byName.has(name)) byName.set(name, []);
+    byName.get(name).push(set);
+  });
+  const dayKey = session?.day;
+  const names = [...byName.keys()].sort(
+    (a, b) =>
+      exerciseSortIndex(dayKey, a, byName.get(a)?.[0]?.slotId)
+      - exerciseSortIndex(dayKey, b, byName.get(b)?.[0]?.slotId),
+  );
+  return names.map((exName) => ({
+    exName,
+    sets: byName.get(exName).sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0)),
+  }));
+}
