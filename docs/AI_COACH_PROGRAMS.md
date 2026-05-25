@@ -56,6 +56,30 @@ See `docs/program-schema.json`. Rules:
 
 Rollback = point `s3CurrentKey` at an older version key (admin or user “undo”).
 
+## Progression suggestions
+
+Week 1 uses the authored program baseline. From week 2 onward, the app should
+prefer cached **AI-generated progression suggestions** built from logged
+performance summaries rather than only copying the prior week's top load.
+
+Current flow in this repo:
+
+1. Athlete completes the week's gym sessions.
+2. Frontend sends `activeProgramSummary` + `targetWeek` to `POST /coach/program`
+   with `task=progression_suggestions`.
+3. Server queries DynamoDB sessions / sets and compacts them into per-slot
+   summaries (`slotId`, actual variation, load scheme, reps, weight, RPE,
+   completion signal). Input contract: `docs/progression-slot-summary-schema.json`.
+4. `task=progression_suggestions` uses the shared coach policy in
+   `docs/AI_COACH_PROMPTS.md`.
+5. Bedrock returns JSON shaped like
+   `docs/progression-suggestions-schema.json`.
+6. Suggestions are stored in DynamoDB under `USER#{sub}` with week-scoped keys.
+7. App reads cached suggestions from `GET /coach/suggestions?week=N`; athlete
+   edits are saved via `PUT /coach/suggestions` using
+   `docs/athlete-suggestion-override-schema.json` and merged back into future
+   coach runs.
+
 ## Permissions
 
 - Athletes: **never** read S3 directly. Only `GET /program` with their JWT.
@@ -78,7 +102,10 @@ Rollback = point `s3CurrentKey` at an older version key (admin or user “undo�
 - S3 bucket `auxos-programs-*` (private, versioned)
 - `program_store.py` — save/load `current.json` + version snapshots
 - Program API sets `s3CurrentKey` when admin saves a `bundle`
-- `POST /coach/program` stub (501) + schema reference for future work
+- `POST /coach/program` for progression suggestion generation
+- `GET /coach/suggestions?week=N` for cached suggestions
+- `PUT /coach/suggestions` for athlete overrides
+- deterministic fallback when Bedrock is unavailable
 
 ## Suggested build order
 

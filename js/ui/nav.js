@@ -27,11 +27,21 @@ function showPage(name, navEl) {
     {dashboard:'Dashboard',log:'Log Workout',progress:'Progression',history:'History',plan:'12-Week Plan',schedule:'Weekly Schedule',settings:'Settings'}[name]||name;
   if(name==='log') {
     if (typeof applyNextIncompleteLogSlot === 'function') applyNextIncompleteLogSlot();
-    renderLogPage();
+    if (typeof ensureCoachSuggestionsForWeek === 'function') {
+      ensureCoachSuggestionsForWeek(state.currentWeek).finally(() => renderLogPage());
+    } else {
+      renderLogPage();
+    }
   }
   if(name==='progress') renderProgressPage();
   if(name==='history') renderHistory();
-  if(name==='plan') renderPlanPage();
+  if(name==='plan') {
+    if (typeof ensureCoachSuggestionsForWeek === 'function') {
+      ensureCoachSuggestionsForWeek(state.planWeek).finally(() => renderPlanPage());
+    } else {
+      renderPlanPage();
+    }
+  }
   if(name==='dashboard') renderDashboard();
   if(name==='schedule') renderSchedule();
   if(name==='settings') renderSettingsPage();

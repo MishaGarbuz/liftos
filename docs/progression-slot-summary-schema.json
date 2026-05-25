@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auxos.app/schemas/progression-slot-summary.json",
+  "title": "Auxos Progression Slot Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "slotId",
+    "day",
+    "plannedExerciseName",
+    "actualExerciseName",
+    "loadScheme",
+    "repRange",
+    "targetRpe",
+    "plannedSets",
+    "performedSets",
+    "completionSignal",
+    "suggestionBaseline"
+  ],
+  "properties": {
+    "slotId": { "type": "string", "minLength": 1 },
+    "day": { "type": "string", "minLength": 1 },
+    "plannedExerciseName": { "type": "string", "minLength": 1 },
+    "actualExerciseName": { "type": "string", "minLength": 1 },
+    "loadScheme": { "type": "string", "minLength": 1 },
+    "repRange": { "type": "string", "minLength": 1 },
+    "targetRpe": { "type": "number", "minimum": 1, "maximum": 10 },
+    "plannedSets": { "type": "integer", "minimum": 1 },
+    "minReps": { "type": ["integer", "null"], "minimum": 1 },
+    "maxReps": { "type": ["integer", "null"], "minimum": 1 },
+    "performedSets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["setNumber", "weightKg", "reps", "rpe", "exercise"],
+        "properties": {
+          "setNumber": { "type": "integer", "minimum": 1 },
+          "weightKg": { "type": "number", "minimum": 0 },
+          "reps": { "type": "integer", "minimum": 0 },
+          "rpe": { "type": "number", "minimum": 0, "maximum": 10 },
+          "exercise": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "completionSignal": {
+      "type": "string",
+      "enum": ["missing", "partial", "completed"]
+    },
+    "suggestionBaseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weightKg", "repsTarget", "rpeTarget", "restSec"],
+      "properties": {
+        "weightKg": { "type": "number", "minimum": 0 },
+        "repsTarget": { "type": "string", "minLength": 1 },
+        "rpeTarget": { "type": "number", "minimum": 1, "maximum": 10 },
+        "restSec": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "athleteOverride": {
+      "$ref": "athlete-suggestion-override-schema.json"
+    }
+  }
+}

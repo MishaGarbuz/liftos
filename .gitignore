@@ -2,6 +2,9 @@
 .DS_Store
 Thumbs.db
 
+# pnpm local store (accidental cache in repo root)
+.pnpm-store/
+
 # Env / secrets
 .env
 .env.*

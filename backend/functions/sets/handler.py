@@ -67,6 +67,11 @@ def lambda_handler(event, context):
             'rpe': decimal.Decimal(str(rpe)) if rpe is not None else None,
             'completed': bool(body.get('completed', True)),
             'e1rm': decimal.Decimal(str(e1rm(weight_kg, reps))),
+            'exerciseId': body.get('exerciseId'),
+            'plannedExerciseName': body.get('plannedExerciseName'),
+            'plannedExerciseId': body.get('plannedExerciseId'),
+            'slotId': body.get('slotId'),
+            'loadScheme': body.get('loadScheme'),
             'timestamp': now_iso(),
         }
         item = {k: v for k, v in item.items() if v is not None}

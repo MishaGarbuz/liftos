@@ -1,4 +1,4 @@
-const CACHE = 'auxos-shell-v4';
+const CACHE = 'auxos-shell-v5';
 let restTimerTimeout = null;
 let timerEndAt = 0;
 let timerNotifyPayload = null;

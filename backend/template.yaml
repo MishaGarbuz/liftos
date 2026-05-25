@@ -26,6 +26,9 @@ Globals:
         LEGACY_PROGRESS_PK: PROGRESS#michael
         ALLOWED_ORIGINS: !Ref AllowedOrigins
         PROGRAMS_BUCKET: !Ref ProgramsBucket
+        COACH_MODEL_ID: anthropic.claude-sonnet-4-6
+        COACH_ENABLE_BEDROCK: 'true'
+        BEDROCK_REGION: !Ref AWS::Region
 
 Resources:
 
@@ -162,6 +165,15 @@ Resources:
                 Resource:
                   - !GetAtt ProgramsBucket.Arn
                   - !Sub '${ProgramsBucket.Arn}/*'
+        - PolicyName: BedrockInvokeAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: '*'
 
   LiftingTrackerApi:
     Type: AWS::Serverless::Api
@@ -409,11 +421,31 @@ Resources:
             RestApiId: !Ref LiftingTrackerApi
             Path: /coach/program
             Method: POST
+        GetCoachSuggestions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /coach/suggestions
+            Method: GET
+        PutCoachSuggestions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /coach/suggestions
+            Method: PUT
         OptionsCoachProgram:
           Type: Api
           Properties:
             RestApiId: !Ref LiftingTrackerApi
             Path: /coach/program
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        OptionsCoachSuggestions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /coach/suggestions
             Method: OPTIONS
             Auth:
               Authorizer: NONE

@@ -206,6 +206,7 @@ function persistLocalState() {
       currentWeek: state.currentWeek,
       currentDay: state.currentDay,
       sessions: state.sessions,
+      coachSuggestions: state.coachSuggestions,
       prefs: state.prefs,
     }));
   } catch (e) { console.warn('localStorage save failed', e); }
@@ -225,6 +226,9 @@ function loadLocalState() {
         state.sessions.forEach((s) => sortSessionSetsByWorkoutOrder(s));
       }
     }
+    if (data.coachSuggestions && typeof data.coachSuggestions === 'object') {
+      state.coachSuggestions = data.coachSuggestions;
+    }
     if (data.currentWeek) state.currentWeek = data.currentWeek;
     if (data.currentDay) state.currentDay = data.currentDay;
     if (data.prefs) state.prefs = { ...state.prefs, ...data.prefs };
@@ -241,6 +245,11 @@ function mapApiSession(s, sets) {
     day,
     sets: (sets || []).map((set, i) => ({
       exercise: set.exercise,
+      exerciseId: set.exerciseId,
+      plannedExerciseName: set.plannedExerciseName,
+      plannedExerciseId: set.plannedExerciseId,
+      slotId: set.slotId,
+      loadScheme: set.loadScheme,
       weight: parseFloat(set.weightKg) || 0,
       reps: parseInt(set.reps, 10) || 0,
       rpe: parseFloat(set.rpe) || 7,
@@ -280,6 +289,87 @@ async function hydrateFromApi() {
     if (maxWeek > state.currentWeek) state.currentWeek = maxWeek;
   }
   persistLocalState();
+}
+
+function coachWeekKey(week) {
+  return String(parseInt(week, 10) || 1);
+}
+
+/** Cache coach suggestions locally so Log + Plan resolve from the same source. */
+function cacheCoachSuggestions(doc) {
+  if (!doc?.targetWeek) return doc;
+  state.coachSuggestions[coachWeekKey(doc.targetWeek)] = doc;
+  persistLocalState();
+  return doc;
+}
+
+function buildCoachWeekContext(week) {
+  const bundle = typeof getActiveProgramBundle === 'function' ? getActiveProgramBundle() : null;
+  return {
+    targetWeek: week,
+    phaseLabel: bundle?.phaseLabel ? bundle.phaseLabel(week) : '',
+  };
+}
+
+function buildCoachAthleteProfileSummary() {
+  const bundle = typeof getActiveProgramBundle === 'function' ? getActiveProgramBundle() : null;
+  return {
+    displayName: bundle?.displayName || 'Athlete',
+    programId: bundle?.id || null,
+  };
+}
+
+async function fetchStoredCoachSuggestions(week) {
+  const data = await apiCall('GET', `/coach/suggestions?week=${encodeURIComponent(week)}`);
+  return cacheCoachSuggestions(data?.suggestions || data);
+}
+
+async function generateCoachSuggestions(week, refresh = false) {
+  const bundle = typeof buildCoachProgramSummary === 'function' ? buildCoachProgramSummary() : null;
+  if (!bundle?.days) throw new Error('Program summary unavailable');
+  const data = await apiCall('POST', '/coach/program', {
+    message: refresh ? `Regenerate week ${week} progression suggestions.` : `Generate week ${week} progression suggestions.`,
+    task: 'progression_suggestions',
+    targetWeek: week,
+    refresh,
+    activeProgramSummary: bundle,
+    weekContext: buildCoachWeekContext(week),
+    athleteProfileSummary: buildCoachAthleteProfileSummary(),
+  }, 20000);
+  return cacheCoachSuggestions(data?.suggestions || data);
+}
+
+async function ensureCoachSuggestionsForWeek(week, refresh = false) {
+  const wk = parseInt(week, 10) || 1;
+  if (wk <= 1) return null;
+  if (!refresh) {
+    const cached = state.coachSuggestions?.[coachWeekKey(wk)];
+    if (cached?.slots) return cached;
+  }
+  if (!apiOnline) return state.coachSuggestions?.[coachWeekKey(wk)] || null;
+  try {
+    if (!refresh) {
+      try {
+        return await fetchStoredCoachSuggestions(wk);
+      } catch (e) {
+        if (!String(e?.message || '').includes('API 404')) throw e;
+      }
+    }
+    return await generateCoachSuggestions(wk, refresh);
+  } catch (e) {
+    console.warn('coach suggestions unavailable', e);
+    return state.coachSuggestions?.[coachWeekKey(wk)] || null;
+  }
+}
+
+async function saveCoachSuggestionOverride(week, slotId, override) {
+  // Overrides are persisted separately so future coach runs can preserve athlete edits.
+  const data = await apiCall('PUT', '/coach/suggestions', {
+    week,
+    slotId,
+    override,
+  }, 20000);
+  return cacheCoachSuggestions(data?.suggestions || data);
 }
 
 async function ensureApiSession() {
@@ -322,6 +412,11 @@ window._syncSetOp = async function (setData) {
   const sid = await ensureApiSession();
   await apiCall('POST', `/sessions/${sid}/sets`, {
     exercise: setData.exercise,
+    exerciseId: setData.exerciseId,
+    plannedExerciseName: setData.plannedExerciseName,
+    plannedExerciseId: setData.plannedExerciseId,
+    slotId: setData.slotId,
+    loadScheme: setData.loadScheme,
     setNumber: setData.setNumber || 1,
     weightKg: setData.weight,
     reps: setData.reps,
@@ -505,6 +600,11 @@ async function syncSessionSetsToApi(session, originalSnapshot, completed) {
       }
       await window._syncSetOp({
         exercise: set.exercise,
+        exerciseId: set.exerciseId,
+        plannedExerciseName: set.plannedExerciseName,
+        plannedExerciseId: set.plannedExerciseId,
+        slotId: set.slotId,
+        loadScheme: set.loadScheme,
         setNumber,
         weight: set.weight,
         reps: set.reps,
@@ -875,6 +975,9 @@ async function bootApp() {
       state.currentDay = defaultGymDayForToday();
     } else {
       state.currentDay = (typeof DAYS !== 'undefined' && DAYS[0]) || 'Mon';
+    }
+    if (typeof ensureCoachSuggestionsForWeek === 'function') {
+      await ensureCoachSuggestionsForWeek(state.currentWeek);
     }
     safeRenderProgramViews();
   } catch (e) {

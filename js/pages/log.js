@@ -6,6 +6,8 @@
 let swapSheetSlotId = null;
 let swapSheetPlannedEx = null;
 let swapSheetSelectedId = null;
+// Tracks the slot currently being edited in the coach-target modal.
+let coachTargetModalContext = null;
 function getCompletedSessionForSlot(week, day) {
   return state.sessions.find(s => s.week === week && s.day === day && s.completed);
 }
@@ -148,6 +150,7 @@ function getCardExerciseContext(card) {
     exerciseId: card.dataset.exerciseId,
     plannedExerciseName: card.dataset.plannedExerciseName,
     plannedExerciseId: card.dataset.plannedExerciseId,
+    loadScheme: card.dataset.loadScheme,
     rest: parseInt(card.dataset.rest, 10) || 60,
   };
 }
@@ -198,6 +201,16 @@ function updateCardLastTimeHint(card, exerciseName) {
     return;
   }
   el.innerHTML = `<strong>Last time:</strong> ${formatLastTimeSummary(sets)}`;
+}
+
+function formatCoachTargetSummary(slotId, week) {
+  const slot = typeof getCoachSlotSuggestion === 'function' ? getCoachSlotSuggestion(week, slotId) : null;
+  if (!slot?.sets?.length) return '';
+  const first = slot.sets[0] || {};
+  const weight = typeof first.weightKg === 'number' ? formatWeightWithUnit(first.weightKg) : '—';
+  const reps = first.targetReps || first.repsTarget || '—';
+  const rpe = typeof first.rpeTarget === 'number' ? `@${first.rpeTarget}` : '';
+  return `Coach target: ${weight} · ${reps}${rpe ? ` · ${rpe}` : ''}`;
 }
 
 function updateCardSwappedBanner(card) {
@@ -344,6 +357,100 @@ function closeExerciseSwapModal() {
   document.getElementById('exerciseSwapLoadWarning')?.classList.add('hidden');
 }
 
+function openCoachTargetModal(slotId) {
+  const card = getExerciseCard(slotId);
+  if (!card) return;
+  const ctx = getCardExerciseContext(card);
+  const ex = card._plannedExTemplate;
+  const blockParts = String(slotId || '').split('-');
+  const bi = parseInt(blockParts[1] || '0', 10);
+  const ei = parseInt(blockParts[2] || '0', 10);
+  const block = getProgramBlock(bi);
+  const slot = typeof getCoachSlotSuggestion === 'function'
+    ? getCoachSlotSuggestion(state.currentWeek, slotId)
+    : null;
+  if (!slot) {
+    showSaveToast('Coach targets are not ready for this slot yet');
+    return;
+  }
+  const setCount = slot?.sets?.length || (typeof getSetsForExercise === 'function'
+    ? getSetsForExercise(ex, block, state.currentWeek)
+    : ex.sets || 1);
+  coachTargetModalContext = { slotId, ctx, ex, block, bi, ei, setCount };
+  document.getElementById('coachTargetTitle').textContent = ctx?.exerciseName || ex.name;
+  document.getElementById('coachTargetSubtitle').textContent = `Week ${state.currentWeek} · ${state.currentDay}`;
+  const scheme = typeof getExerciseLoadScheme === 'function' ? getExerciseLoadScheme(ctx?.exerciseName || ex.name) : null;
+  document.getElementById('coachTargetLoadNote').textContent = scheme?.note || '';
+  const body = document.getElementById('coachTargetBody');
+  body.innerHTML = '';
+  for (let i = 1; i <= setCount; i += 1) {
+    const set = typeof getCoachSetSuggestion === 'function'
+      ? getCoachSetSuggestion(state.currentWeek, slotId, i)
+      : null;
+    const weight = typeof resolveCoachWeightTarget === 'function'
+      ? resolveCoachWeightTarget(ex, state.currentWeek, state.currentDay, ctx?.exerciseName || ex.name, slotId, i)
+      : (ex.weight || 0);
+    const reps = typeof resolveCoachRepsTarget === 'function'
+      ? resolveCoachRepsTarget(ex, state.currentWeek, slotId, i)
+      : ex.repsTarget;
+    const rpe = typeof resolveCoachRpeTarget === 'function'
+      ? resolveCoachRpeTarget(ex, state.currentWeek, slotId, i)
+      : ex.rpe;
+    const rest = typeof resolveCoachRestTarget === 'function'
+      ? resolveCoachRestTarget(ex, block, ei, state.currentWeek, slotId, i)
+      : ex.rest;
+    const row = document.createElement('div');
+    row.className = 'coach-target-row';
+    row.innerHTML = `
+      <div class="coach-target-setnum">Set ${i}</div>
+      <input type="number" class="settings-input coach-target-input" id="coachTargetWeight-${i}" value="${set?.weightKg ?? weight}" min="0" step="0.5" inputmode="decimal" aria-label="Set ${i} weight">
+      <input type="number" class="settings-input coach-target-input" id="coachTargetReps-${i}" value="${set?.targetReps ?? repsPlaceholder(reps)}" min="1" inputmode="numeric" aria-label="Set ${i} reps">
+      <input type="number" class="settings-input coach-target-input" id="coachTargetRpe-${i}" value="${set?.rpeTarget ?? rpe}" min="1" max="10" step="0.5" inputmode="decimal" aria-label="Set ${i} RPE">
+      <input type="number" class="settings-input coach-target-input coach-target-rest" id="coachTargetRest-${i}" value="${set?.restSec ?? rest}" min="0" step="5" inputmode="numeric" aria-label="Set ${i} rest seconds">
+    `;
+    body.appendChild(row);
+  }
+  document.getElementById('coachTargetModal')?.classList.add('open');
+}
+
+function closeCoachTargetModal() {
+  document.getElementById('coachTargetModal')?.classList.remove('open');
+  coachTargetModalContext = null;
+}
+
+async function saveCoachTargetOverride() {
+  const ctx = coachTargetModalContext;
+  if (!ctx || typeof saveCoachSuggestionOverride !== 'function') return;
+  const btn = document.getElementById('coachTargetSaveBtn');
+  if (btn) btn.disabled = true;
+  try {
+    // Save only athlete-owned fields; the backend merges these back onto the generated slot.
+    const override = {
+      targetExerciseName: ctx.ctx?.exerciseName || ctx.ex.name,
+      sets: Array.from({ length: ctx.setCount }, (_, idx) => {
+        const setNumber = idx + 1;
+        return {
+          setNumber,
+          weightKg: parseFloat(document.getElementById(`coachTargetWeight-${setNumber}`)?.value || 0) || 0,
+          targetReps: parseInt(document.getElementById(`coachTargetReps-${setNumber}`)?.value || 0, 10) || 0,
+          rpeTarget: parseFloat(document.getElementById(`coachTargetRpe-${setNumber}`)?.value || 0) || 0,
+          restSec: parseInt(document.getElementById(`coachTargetRest-${setNumber}`)?.value || 0, 10) || 0,
+        };
+      }),
+      note: 'Athlete override',
+    };
+    await saveCoachSuggestionOverride(state.currentWeek, ctx.slotId, override);
+    closeCoachTargetModal();
+    renderLogPage();
+    if (typeof renderPlanPage === 'function') renderPlanPage();
+    showSaveToast('Coach targets updated');
+  } catch (e) {
+    alert(e.message || 'Could not save coach targets');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function renderExerciseSwapOptions() {
   const list = document.getElementById('exerciseSwapList');
   const plannedEx = window.exerciseSwapContext?.plannedEx || swapSheetPlannedEx;
@@ -406,8 +513,21 @@ global.openExerciseSwapSheet = openExerciseSwapSheet;
 global.closeExerciseSwapModal = closeExerciseSwapModal;
 global.confirmExerciseSwap = confirmExerciseSwap;
 global.updateExerciseSwapLoadWarning = updateExerciseSwapLoadWarning;
+global.openCoachTargetModal = openCoachTargetModal;
+global.closeCoachTargetModal = closeCoachTargetModal;
+global.saveCoachTargetOverride = saveCoachTargetOverride;
 
-function buildTimedSetRowHtml(sid, setNum, ex, showCopy) {
+function changeLogWeek(week) {
+  state.currentWeek = week;
+  if (typeof persistLocalState === 'function') persistLocalState();
+  if (typeof ensureCoachSuggestionsForWeek === 'function') {
+    ensureCoachSuggestionsForWeek(week).finally(() => renderLogPage());
+    return;
+  }
+  renderLogPage();
+}
+
+function buildTimedSetRowHtml(sid, setNum, ex, showCopy, target) {
   const timed = parseTimedTargetSeconds(ex.repsTarget);
   const copyBtn = showCopy
     ? `<button type="button" class="set-copy-btn" onclick="copyPreviousSet('${sid}')" title="Copy previous set" aria-label="Copy previous set">↑</button>`
@@ -417,13 +537,13 @@ function buildTimedSetRowHtml(sid, setNum, ex, showCopy) {
       <td class="set-weight-cell"><span class="set-na">—</span></td>
       <td class="set-hold-cell">
         <div class="hold-set-wrap">
-          <input type="number" class="set-input set-hold-input" id="${sid}-r" placeholder="${timed.defaultSec}" min="1" max="600" inputmode="numeric" autocomplete="off" oninput="clearSetInputError('${sid}-r')" aria-label="Hold duration in seconds">
-          <span class="hold-target-label">${timed.label}</span>
+          <input type="number" class="set-input set-hold-input" id="${sid}-r" placeholder="${target?.targetReps || timed.defaultSec}" min="1" max="600" inputmode="numeric" autocomplete="off" oninput="clearSetInputError('${sid}-r')" aria-label="Hold duration in seconds">
+          <span class="hold-target-label">${target?.repsTarget || timed.label}</span>
           <button type="button" class="hold-start-btn" id="${sid}-hold-start" onclick="startHoldSet('${sid}')">Start</button>
         </div>
       </td>
-      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" autocomplete="off"></td>
-      <td><span class="badge badge-muted" style="font-size:10px">${ex.rest}s</span></td>
+      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${target?.rpeTarget ?? ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" autocomplete="off"></td>
+      <td><span class="badge badge-muted" style="font-size:10px">${target?.restSec ?? ex.rest}s</span></td>
       <td class="set-actions-cell">
         ${copyBtn}
         <button type="button" class="set-done-btn" id="${sid}-done" onclick="markSetDone('${sid}')" aria-label="Mark done">
@@ -432,10 +552,10 @@ function buildTimedSetRowHtml(sid, setNum, ex, showCopy) {
       </td>`;
 }
 
-function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
-  if (isTimedExercise(ex)) return buildTimedSetRowHtml(sid, setNum, ex, showCopy);
-  const wPlaceholder = displayWeight(targetW);
-  const repsPh = repsPlaceholder(ex.repsTarget);
+function buildSetRowHtml(sid, setNum, targetW, ex, showCopy, target) {
+  if (isTimedExercise(ex)) return buildTimedSetRowHtml(sid, setNum, ex, showCopy, target);
+  const wPlaceholder = displayWeight(typeof target?.weightKg === 'number' ? target.weightKg : targetW);
+  const repsPh = target?.targetReps || repsPlaceholder(target?.repsTarget || ex.repsTarget);
   const copyBtn = showCopy
     ? `<button type="button" class="set-copy-btn" onclick="copyPreviousSet('${sid}')" title="Copy previous set" aria-label="Copy previous set">↑</button>`
     : '';
@@ -452,8 +572,8 @@ function buildSetRowHtml(sid, setNum, targetW, ex, showCopy) {
         </div>
       </td>
       <td><input type="number" class="set-input" id="${sid}-r" placeholder="${repsPh}" min="1" inputmode="numeric" enterkeyhint="next" autocomplete="off" oninput="clearSetInputError('${sid}-r')"></td>
-      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" autocomplete="off"></td>
-      <td><span class="badge badge-muted" style="font-size:10px">${ex.rest}s</span></td>
+      <td><input type="number" class="set-input" id="${sid}-rpe" placeholder="${target?.rpeTarget ?? ex.rpe}" min="1" max="10" step="0.5" inputmode="decimal" enterkeyhint="done" autocomplete="off"></td>
+      <td><span class="badge badge-muted" style="font-size:10px">${target?.restSec ?? ex.rest}s</span></td>
       <td class="set-actions-cell">
         ${copyBtn}
         <button type="button" class="set-done-btn" id="${sid}-done" onclick="markSetDone('${sid}')" aria-label="Mark done">
@@ -654,7 +774,7 @@ function renderLogPage() {
     const btn = document.createElement('button');
     btn.className = 'week-tab'+(w===state.currentWeek?' active':'')+(isDeload?' deload':'');
     btn.textContent = 'W'+w;
-    btn.onclick = ()=>{ state.currentWeek=w; renderLogPage(); };
+    btn.onclick = ()=>{ changeLogWeek(w); };
     wt.appendChild(btn);
   }
   // Day tabs
@@ -771,19 +891,27 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   const savedSwap = session?.exerciseSwaps?.[slotId];
   const displayName = savedSwap?.exerciseName || ex.name;
   const displayId = savedSwap?.exerciseId || plannedId;
-  const targetW = typeof resolveTargetWeight === 'function'
-    ? resolveTargetWeight(ex, state.currentWeek, state.currentDay, displayName, slotId)
+  const targetSlot = typeof getCoachSlotSuggestion === 'function'
+    ? getCoachSlotSuggestion(state.currentWeek, slotId)
+    : null;
+  const targetW = typeof resolveCoachWeightTarget === 'function'
+    ? resolveCoachWeightTarget(ex, state.currentWeek, state.currentDay, displayName, slotId, 1)
     : ex.weight;
   const block = getProgramBlock(bi);
-  const effectiveRest = typeof getEffectiveExerciseRest === 'function'
-    ? getEffectiveExerciseRest(ex, block, ei)
-    : ex.rest;
+  const effectiveRest = typeof resolveCoachRestTarget === 'function'
+    ? resolveCoachRestTarget(ex, block, ei, state.currentWeek, slotId, 1)
+    : (typeof getEffectiveExerciseRest === 'function'
+      ? getEffectiveExerciseRest(ex, block, ei)
+      : ex.rest);
 
   card.dataset.slotId = slotId;
   card.dataset.plannedExerciseName = ex.name;
   card.dataset.plannedExerciseId = plannedId;
   card.dataset.exerciseName = displayName;
   card.dataset.exerciseId = displayId;
+  card.dataset.loadScheme = typeof getExerciseLoadScheme === 'function'
+    ? getExerciseLoadScheme(displayName).id
+    : 'other';
   card.dataset.rest = String(effectiveRest);
   card._plannedExTemplate = { ...ex, rest: effectiveRest };
 
@@ -793,13 +921,16 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
     : '';
 
   let setsHtml = '';
-  const setCount = typeof getSetsForExercise === 'function'
+  const setCount = targetSlot?.sets?.length || (typeof getSetsForExercise === 'function'
     ? getSetsForExercise(ex, block, state.currentWeek)
-    : ex.sets;
+    : ex.sets);
   const rowEx = card._plannedExTemplate;
   for (let s = 0; s < setCount; s++) {
     const sid = `set-${state.currentDay}-${bi}-${ei}-${s}`;
-    setsHtml += `<tr class="set-row" id="${sid}">${buildSetRowHtml(sid, s + 1, targetW, rowEx, s > 0)}</tr>`;
+    const setTarget = typeof getCoachSetSuggestion === 'function'
+      ? getCoachSetSuggestion(state.currentWeek, slotId, s + 1)
+      : null;
+    setsHtml += `<tr class="set-row" id="${sid}">${buildSetRowHtml(sid, s + 1, targetW, rowEx, s > 0, setTarget)}</tr>`;
   }
 
   const showSwap = getSuggestedExercises(ex).length > 1;
@@ -810,6 +941,13 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
     : (inSuper && isSupersetStyleBlock(block) && ei < lastEi
       ? '<div class="superset-rest-hint">No rest — go straight to the next exercise in this superset</div>'
       : '');
+  const coachSummary = formatCoachTargetSummary(slotId, state.currentWeek);
+  const coachActions = state.currentWeek > 1 && targetSlot
+    ? `<div class="exercise-coach-row">
+        <div class="exercise-coach-target">${coachSummary || 'Coach target ready for this slot'}</div>
+        <button type="button" class="btn btn-ghost btn-sm exercise-coach-btn" onclick="openCoachTargetModal('${slotId}')">Edit target</button>
+      </div>`
+    : '';
 
   card.innerHTML = `
     <div class="exercise-header">
@@ -832,6 +970,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
         <div class="exercise-notes">${ex.notes}</div>
         ${supersetRestHint}
         ${lastHint}
+        ${coachActions}
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -914,13 +1053,17 @@ function addSet(btn, exJson, bi, ei) {
     const sid = `set-${state.currentDay}-${bi}-${ei}-${setNum-1}`;
     const cardEl = btn.closest('.exercise-card');
     const ctx = getCardExerciseContext(cardEl);
-    const targetW = typeof resolveTargetWeight === 'function'
-      ? resolveTargetWeight(ex, state.currentWeek, state.currentDay, ctx?.exerciseName || ex.name, cardEl?.dataset?.slotId)
+    const slotId = cardEl?.dataset?.slotId;
+    const targetW = typeof resolveCoachWeightTarget === 'function'
+      ? resolveCoachWeightTarget(ex, state.currentWeek, state.currentDay, ctx?.exerciseName || ex.name, slotId, setNum)
       : ex.weight;
+    const setTarget = typeof getCoachSetSuggestion === 'function'
+      ? getCoachSetSuggestion(state.currentWeek, slotId, setNum)
+      : null;
     const tr = document.createElement('tr');
     tr.className = 'set-row';
     tr.id = sid;
-    tr.innerHTML = buildSetRowHtml(sid, setNum, targetW, ex, setNum > 1);
+    tr.innerHTML = buildSetRowHtml(sid, setNum, targetW, ex, setNum > 1, setTarget);
     tbody.appendChild(tr);
     updateSetRowActions(card);
   } catch(e) { console.error(e); }
@@ -1354,6 +1497,7 @@ function saveSetToState(sid) {
     plannedExerciseId: ctx?.plannedExerciseId,
     plannedExerciseName: ctx?.plannedExerciseName,
     slotId: ctx?.slotId,
+    loadScheme: ctx?.loadScheme || (typeof getExerciseLoadScheme === 'function' ? getExerciseLoadScheme(exName).id : 'other'),
     weight: w,
     reps: r,
     rpe,

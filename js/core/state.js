@@ -6,6 +6,7 @@ let state = {
   currentWeek: 1,
   currentDay: "Mon",
   sessions: [],
+  coachSuggestions: {},
   progressChart: null,
   dashVolumeChart: null,
   dashE1rmChart: null,

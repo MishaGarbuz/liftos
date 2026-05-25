@@ -561,6 +561,30 @@
   </div>
 </div>
 
+<!-- COACH TARGETS -->
+<div class="modal-backdrop" id="coachTargetModal" onclick="if(event.target===this)closeCoachTargetModal()">
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="coachTargetTitle">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="coachTargetTitle">Coach target</div>
+        <div class="modal-subtitle" id="coachTargetSubtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeCoachTargetModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="settings-hint" id="coachTargetLoadNote"></p>
+      <div class="coach-target-head">
+        <span>Set</span><span>Weight</span><span>Reps</span><span>RPE</span><span>Rest</span>
+      </div>
+      <div id="coachTargetBody"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeCoachTargetModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="coachTargetSaveBtn" onclick="saveCoachTargetOverride()">Save target</button>
+    </div>
+  </div>
+</div>
+
 <!-- SESSION DETAIL / EDIT MODAL -->
 <div class="modal-backdrop" id="sessionModal" onclick="if(event.target===this)closeSessionModal()">
   <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">

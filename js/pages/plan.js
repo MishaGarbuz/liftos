@@ -12,7 +12,7 @@ function renderPlanPage() {
     const btn=document.createElement('button');
     btn.className='plan-week-btn'+(w===state.planWeek?' active':'')+(isD?' deload':'');
     btn.innerHTML=`<div>W${w}</div><div style="font-size:9px;margin-top:2px">${isD?'DELOAD':phase}</div>`;
-    btn.onclick=()=>{state.planWeek=w;renderPlanPage();};
+    btn.onclick=()=>{changePlanWeek(w);};
     grid.appendChild(btn);
   }
 
@@ -32,19 +32,29 @@ function renderPlanPage() {
   DAYS.forEach(dayKey=>{
     const day=PROGRAM[dayKey];
     let first=true;
-    day.blocks.forEach(block=>{
+    day.blocks.forEach((block, bi)=>{
       block.exercises.forEach((ex,ei)=>{
         const isSuper=block.type==='superset'||block.type==='core';
-        const restSec=typeof getEffectiveExerciseRest==='function'
-          ? getEffectiveExerciseRest(ex,block,ei)
-          : ex.rest;
+        const slotId = typeof getExerciseSlotId === 'function' ? getExerciseSlotId(dayKey, bi, ei) : null;
+        // Plan view shows the first set's suggestion as the slot headline target.
+        const restSec=typeof resolveCoachRestTarget==='function'
+          ? resolveCoachRestTarget(ex, block, ei, state.planWeek, slotId, 1)
+          : (typeof getEffectiveExerciseRest==='function'
+            ? getEffectiveExerciseRest(ex,block,ei)
+            : ex.rest);
         const wArr=PLAN_PROGRESSIONS[dayKey];
-        let tw=typeof resolveTargetWeight==='function'
-          ? resolveTargetWeight(ex, state.planWeek, dayKey, ex.name, null)
+        let tw=typeof resolveCoachWeightTarget==='function'
+          ? resolveCoachWeightTarget(ex, state.planWeek, dayKey, ex.name, slotId, 1)
           : ex.weight;
-        if(wArr&&wArr[wi]&&!resolveTargetWeight) {
+        if(wArr&&wArr[wi]&&typeof resolveCoachWeightTarget!=='function') {
           tw=Math.round(ex.weight*(deload?0.6:1+(wi*0.025))*2)/2;
         }
+        const repsTarget = typeof resolveCoachRepsTarget==='function'
+          ? resolveCoachRepsTarget(ex, state.planWeek, slotId, 1)
+          : ex.repsTarget;
+        const rpeTarget = typeof resolveCoachRpeTarget==='function'
+          ? resolveCoachRpeTarget(ex, state.planWeek, slotId, 1)
+          : ex.rpe;
         html+=`<tr${first?` class="day-group"`:''}>
           <td style="color:var(--accent);font-weight:700;white-space:nowrap">${first?day.label.split('—')[0].trim():''}</td>
           <td>
@@ -52,10 +62,10 @@ function renderPlanPage() {
             ${isSuper?`<span class="plan-superset-tag">${block.type==='core'?'Core':block.label}</span>`:''}
           </td>
           <td>${ex.sets}</td>
-          <td>${ex.repsTarget}</td>
+          <td>${repsTarget}</td>
           <td><strong>${tw}kg</strong></td>
           <td style="color:var(--text-muted)">${ex.tempo}</td>
-          <td><span class="badge badge-accent">${ex.rpe}</span></td>
+          <td><span class="badge badge-accent">${rpeTarget}</span></td>
           <td>${restSec}s</td>
           <td style="font-size:11px;color:var(--text-faint);max-width:180px">${ex.alt}</td>
         </tr>`;
@@ -67,4 +77,14 @@ function renderPlanPage() {
 
   html+='</tbody></table></div>';
   document.getElementById('planTableContent').innerHTML=html;
+}
+
+function changePlanWeek(week) {
+  state.planWeek = week;
+  if (typeof persistLocalState === 'function') persistLocalState();
+  if (typeof ensureCoachSuggestionsForWeek === 'function') {
+    ensureCoachSuggestionsForWeek(week).finally(() => renderPlanPage());
+    return;
+  }
+  renderPlanPage();
 }

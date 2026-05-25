@@ -361,6 +361,71 @@
     return baselineProgramWeight(ex, week);
   }
 
+  function getCoachSuggestionDoc(week) {
+    if (typeof state === "undefined") return null;
+    return state.coachSuggestions?.[String(week)] || state.coachSuggestions?.[week] || null;
+  }
+
+  /** Slot suggestions are keyed the same way the workout UI addresses exercise cards. */
+  function getCoachSlotSuggestion(week, slotId) {
+    return getCoachSuggestionDoc(week)?.slots?.[slotId] || null;
+  }
+
+  function getCoachSetSuggestion(week, slotId, setNumber) {
+    const sets = getCoachSlotSuggestion(week, slotId)?.sets || [];
+    return sets.find((s) => Number(s.setNumber || 0) === Number(setNumber || 0)) || null;
+  }
+
+  function getCoachTargetSummary(week, slotId, setNumber) {
+    const slot = getCoachSlotSuggestion(week, slotId);
+    const set = getCoachSetSuggestion(week, slotId, setNumber);
+    return { slot, set };
+  }
+
+  function resolveCoachWeightTarget(ex, week, dayKey, exerciseName, slotId, setNumber) {
+    const set = getCoachSetSuggestion(week, slotId, setNumber);
+    if (set && typeof set.weightKg === "number") return set.weightKg;
+    return resolveTargetWeight(ex, week, dayKey, exerciseName, slotId);
+  }
+
+  function resolveCoachRepsTarget(ex, week, slotId, setNumber) {
+    const set = getCoachSetSuggestion(week, slotId, setNumber);
+    if (!set) return ex.repsTarget;
+    if (typeof set.targetReps === "number" && set.targetReps > 0) return String(set.targetReps);
+    if (set.repsTarget) return set.repsTarget;
+    return ex.repsTarget;
+  }
+
+  function resolveCoachRpeTarget(ex, week, slotId, setNumber) {
+    const set = getCoachSetSuggestion(week, slotId, setNumber);
+    if (set && typeof set.rpeTarget === "number") return String(set.rpeTarget);
+    return ex.rpe;
+  }
+
+  function resolveCoachRestTarget(ex, block, exerciseIndex, week, slotId, setNumber) {
+    const set = getCoachSetSuggestion(week, slotId, setNumber);
+    if (set && typeof set.restSec === "number") return set.restSec;
+    return typeof getEffectiveExerciseRest === "function"
+      ? getEffectiveExerciseRest(ex, block, exerciseIndex)
+      : ex.rest;
+  }
+
+  function buildCoachProgramSummary(bundle) {
+    const b = bundle || getActiveProgramBundle() || {};
+    return {
+      id: b.id,
+      displayName: b.displayName,
+      programStartDate: b.programStartDate || null,
+      gymDays: Array.isArray(b.gymDays) ? b.gymDays.slice() : [],
+      deloadWeeks: Array.isArray(b.deloadWeeks) ? b.deloadWeeks.slice() : [],
+      phaseRules: Array.from({ length: 12 }, (_, i) => ({
+        maxWeek: i + 1,
+        label: typeof b.phaseLabel === "function" ? b.phaseLabel(i + 1) : `Week ${i + 1}`,
+      })),
+      days: JSON.parse(JSON.stringify(b.days || {})),
+    };
+  }
+
   function isLogSlotCompleted(week, day) {
     return (typeof state !== "undefined" ? state.sessions : []).some(
       (s) => s.completed && s.week === week && s.day === day,
@@ -530,6 +595,15 @@
   global.getActiveProgramBundle = getActiveProgramBundle;
   global.programIdForEmail = programIdForEmail;
   global.resolveTargetWeight = resolveTargetWeight;
+  global.getCoachSuggestionDoc = getCoachSuggestionDoc;
+  global.getCoachSlotSuggestion = getCoachSlotSuggestion;
+  global.getCoachSetSuggestion = getCoachSetSuggestion;
+  global.getCoachTargetSummary = getCoachTargetSummary;
+  global.resolveCoachWeightTarget = resolveCoachWeightTarget;
+  global.resolveCoachRepsTarget = resolveCoachRepsTarget;
+  global.resolveCoachRpeTarget = resolveCoachRpeTarget;
+  global.resolveCoachRestTarget = resolveCoachRestTarget;
+  global.buildCoachProgramSummary = buildCoachProgramSummary;
   global.getSetsForExercise = getSetsForExercise;
   global.isDeloadWeek = isDeloadWeek;
   global.getWeekGymProgress = getWeekGymProgress;

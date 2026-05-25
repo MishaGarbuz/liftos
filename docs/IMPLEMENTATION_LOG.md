@@ -127,6 +127,22 @@ Working reference for **where features live** and **how they behave**. Update th
 
 ---
 
+## Coach progression targets
+
+**Mockup:** `canvases/coach-targets-mockup.canvas.tsx` (open beside chat)
+
+**Primary files:** `backend/functions/coach/handler.py`, `backend/functions/shared/coach_progression.py`, `backend/functions/shared/coach_store.py`, `js/api/client.js`, `js/data/program-registry.js`, `js/pages/log.js`, `js/pages/plan.js`
+
+**Logic**
+
+1. Frontend builds `activeProgramSummary` from the current bundle and requests `task=progression_suggestions`.
+2. Coach Lambda compacts completed sessions into slot summaries and either calls Bedrock or falls back to deterministic progression rules.
+3. Suggestions are cached per week in DynamoDB and read via `GET /coach/suggestions?week=N`.
+4. Athlete edits from the log card modal save slot-scoped overrides via `PUT /coach/suggestions`.
+5. Log and Plan both resolve displayed weight, reps, RPE, and rest from the same cached suggestion document.
+
+---
+
 ## Auth + per-user DynamoDB partition
 
 **Primary files:** `js/auth.js`, `js/api/client.js` (`getAuthHeaders`, `hydrateFromApi`), `backend/functions/shared/utils.py` (`get_user_pk`), `backend/functions/shared/migrate.py`
@@ -191,3 +207,4 @@ Working reference for **where features live** and **how they behave**. Update th
 | 2026-05-22 | Clear deletes all in-progress cloud sessions for the week/day slot. |
 | 2026-05-22 | DELETE set API + sync when unticking a set. |
 | 2026-05-22 | Superset rest on trail exercise; core blocks sequential. |
+| 2026-05-25 | AI Coach progression targets wired end-to-end: slot-summary payload builder, week-scoped suggestion cache, athlete overrides, and log/plan target consumption. |
