@@ -49,6 +49,30 @@ function getLastSetsForExercise(exerciseName, day) {
   return null;
 }
 
+/**
+ * Swap options should only advertise history for the exact logged variation.
+ * We keep the broader related-exercise matcher for target resolution elsewhere.
+ */
+function getExactLastSetsForExercise(exerciseName, day) {
+  const sessions = state.sessions.filter((s) => s.completed && s.day === day);
+  sessions.sort((a, b) => {
+    if (b.week !== a.week) return b.week - a.week;
+    const da = Date.parse(a.completedAt || a.date) || 0;
+    const db = Date.parse(b.completedAt || b.date) || 0;
+    return db - da;
+  });
+  for (const session of sessions) {
+    const sets = session.sets
+      .filter((s) => {
+        if (!(s.weight > 0 || s.reps > 0)) return false;
+        return s.exercise === exerciseName;
+      })
+      .sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0));
+    if (sets.length) return sets;
+  }
+  return null;
+}
+
 function formatLastTimeSummary(sets, ex) {
   return sets.map(s => {
     const rpe = s.rpe ? ` @${s.rpe}` : '';
@@ -162,10 +186,10 @@ function isCardSwapped(card) {
 
 function formatSwapLastHint(name, dayKey) {
   const day = dayKey || state.currentDay;
-  const sets = getLastSetsForExercise(name, day);
+  const sets = getExactLastSetsForExercise(name, day);
   const scheme = typeof getExerciseLoadScheme === 'function' ? getExerciseLoadScheme(name) : null;
   const schemeBit = scheme && scheme.short !== '—' ? ` · ${scheme.short}` : '';
-  if (!sets) return `No prior log for this day${schemeBit}`;
+  if (!sets) return `No history for this exercise${schemeBit}`;
   return `Last: ${formatLastTimeSummary(sets)}${schemeBit}`;
 }
 
@@ -516,12 +540,94 @@ global.updateExerciseSwapLoadWarning = updateExerciseSwapLoadWarning;
 global.openCoachTargetModal = openCoachTargetModal;
 global.closeCoachTargetModal = closeCoachTargetModal;
 global.saveCoachTargetOverride = saveCoachTargetOverride;
+global.regenerateCoachTargets = regenerateCoachTargets;
 
 function changeLogWeek(week) {
   state.currentWeek = week;
   if (typeof persistLocalState === 'function') persistLocalState();
   if (typeof ensureCoachSuggestionsForWeek === 'function') {
     ensureCoachSuggestionsForWeek(week).finally(() => renderLogPage());
+    return;
+  }
+  renderLogPage();
+}
+
+function coachBannerMessageForPage(doc, pageName) {
+  if (!doc) return '';
+  if (pageName === 'plan') {
+    return 'Coach-adjusted targets are applied to the table values below for this week.';
+  }
+  return doc.athleteMessage || 'Coach-adjusted targets appear on each exercise card below.';
+}
+
+function escapeCoachBannerText(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function renderCoachStatusBanner(host, week, pageName) {
+  if (!host) return;
+  host.className = 'coach-status-banner hidden';
+  host.innerHTML = '';
+
+  const wk = parseInt(week, 10) || 1;
+  if (wk <= 1) {
+    host.className = 'coach-status-banner is-pending';
+    host.innerHTML = `
+      <div>
+        <div class="coach-status-banner-title">AI Coach starts in Week 2</div>
+        <div class="coach-status-banner-copy">Week 1 uses the authored program baseline. From Week 2 onward, coach-generated targets appear here and inside the workout cards.</div>
+      </div>`;
+    return;
+  }
+
+  const doc = typeof getCoachSuggestionDoc === 'function' ? getCoachSuggestionDoc(wk) : null;
+  if (doc?.slots && Object.keys(doc.slots).length) {
+    const bannerCopy = escapeCoachBannerText(coachBannerMessageForPage(doc, pageName));
+    host.className = 'coach-status-banner is-active';
+    host.innerHTML = `
+      <div>
+        <div class="coach-status-banner-title">AI Coach targets active for Week ${wk}</div>
+        <div class="coach-status-banner-copy">${bannerCopy}</div>
+      </div>
+      <div class="coach-status-banner-actions">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="regenerateCoachTargets(${wk}, '${pageName}')">Regenerate targets</button>
+      </div>`;
+    return;
+  }
+
+  const offline = typeof apiOnline !== 'undefined' && !apiOnline;
+  host.className = `coach-status-banner ${offline ? 'is-offline' : 'is-pending'}`;
+  host.innerHTML = `
+    <div>
+      <div class="coach-status-banner-title">AI Coach targets not loaded for Week ${wk}</div>
+      <div class="coach-status-banner-copy">${offline
+        ? 'You are offline, so cached coach targets are unavailable right now.'
+        : 'Generate this week once to see coach-adjusted weights, reps, RPE, and rest in the workout and plan views.'}</div>
+    </div>
+    ${offline ? '' : `<div class="coach-status-banner-actions">
+      <button type="button" class="btn btn-primary btn-sm" onclick="regenerateCoachTargets(${wk}, '${pageName}')">Generate targets</button>
+    </div>`}`;
+}
+
+async function regenerateCoachTargets(week, pageName = 'log') {
+  if (typeof ensureCoachSuggestionsForWeek !== 'function') return;
+  try {
+    const doc = await ensureCoachSuggestionsForWeek(week, true);
+    if (doc?.slots && Object.keys(doc.slots).length) {
+      showSaveToast(`AI Coach targets ready for Week ${week}`);
+    } else {
+      alert('AI Coach targets were not generated for this week yet.');
+    }
+  } catch (e) {
+    alert(e.message || 'Could not generate AI Coach targets');
+  }
+  if (pageName === 'plan' && typeof renderPlanPage === 'function') {
+    renderPlanPage();
     return;
   }
   renderLogPage();
@@ -763,6 +869,10 @@ function hideLogCompletedBanner() {
 }
 
 function renderLogPage() {
+  if (typeof updateUserChrome === 'function' && typeof getActiveProgramBundle === 'function') {
+    updateUserChrome(getActiveProgramBundle());
+  }
+  renderCoachStatusBanner(document.getElementById('logCoachBanner'), state.currentWeek, 'log');
   activeApiSessionId = null;
   const inProgress = state.sessions.find(s => s.week === state.currentWeek && s.day === state.currentDay && !s.completed);
   if (inProgress?.sessionId) activeApiSessionId = inProgress.sessionId;
@@ -944,7 +1054,10 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   const coachSummary = formatCoachTargetSummary(slotId, state.currentWeek);
   const coachActions = state.currentWeek > 1 && targetSlot
     ? `<div class="exercise-coach-row">
-        <div class="exercise-coach-target">${coachSummary || 'Coach target ready for this slot'}</div>
+        <div class="exercise-coach-summary">
+          <span class="badge badge-blue">AI Coach</span>
+          <div class="exercise-coach-target">${coachSummary || 'Coach target ready for this slot'}</div>
+        </div>
         <button type="button" class="btn btn-ghost btn-sm exercise-coach-btn" onclick="openCoachTargetModal('${slotId}')">Edit target</button>
       </div>`
     : '';

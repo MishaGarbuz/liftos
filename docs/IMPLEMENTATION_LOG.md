@@ -130,6 +130,7 @@ Working reference for **where features live** and **how they behave**. Update th
 ## Coach progression targets
 
 **Mockup:** `canvases/coach-targets-mockup.canvas.tsx` (open beside chat)
+**Mockup:** `canvases/coach-visibility-log-layout-mockup.canvas.tsx` (open beside chat)
 
 **Primary files:** `backend/functions/coach/handler.py`, `backend/functions/shared/coach_progression.py`, `backend/functions/shared/coach_store.py`, `js/api/client.js`, `js/data/program-registry.js`, `js/pages/log.js`, `js/pages/plan.js`
 
@@ -140,6 +141,7 @@ Working reference for **where features live** and **how they behave**. Update th
 3. Suggestions are cached per week in DynamoDB and read via `GET /coach/suggestions?week=N`.
 4. Athlete edits from the log card modal save slot-scoped overrides via `PUT /coach/suggestions`.
 5. Log and Plan both resolve displayed weight, reps, RPE, and rest from the same cached suggestion document.
+6. Week 2+ surfaces a top-level AI Coach banner, exposes a manual regenerate action, and marks plan rows with an `AI Coach` badge when slot suggestions are active.
 
 ---
 
@@ -208,3 +210,4 @@ Working reference for **where features live** and **how they behave**. Update th
 | 2026-05-22 | DELETE set API + sync when unticking a set. |
 | 2026-05-22 | Superset rest on trail exercise; core blocks sequential. |
 | 2026-05-25 | AI Coach progression targets wired end-to-end: slot-summary payload builder, week-scoped suggestion cache, athlete overrides, and log/plan target consumption. |
+| 2026-05-25 | AI Coach visibility pass: week banners, manual regenerate action, plan-row indicators, and tighter mobile log columns so the tick stays on screen. |

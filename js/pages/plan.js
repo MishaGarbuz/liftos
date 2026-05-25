@@ -4,6 +4,9 @@
    12-WEEK PLAN
 ═══════════════════════════════════════════════════════════════ */
 function renderPlanPage() {
+  if (typeof renderCoachStatusBanner === 'function') {
+    renderCoachStatusBanner(document.getElementById('planCoachBanner'), state.planWeek, 'plan');
+  }
   const grid = document.getElementById('planWeekGrid');
   grid.innerHTML = '';
   for(let w=1;w<=12;w++){
@@ -19,9 +22,13 @@ function renderPlanPage() {
   const deload=typeof isDeloadWeek==='function'?isDeloadWeek(state.planWeek):[6,12].includes(state.planWeek);
   const phase=typeof getActiveProgramBundle==='function'?getActiveProgramBundle().phaseLabel(state.planWeek):'';
   const wi=state.planWeek-1;
+  const hasCoachTargets = typeof getCoachSuggestionDoc === 'function'
+    ? Boolean(getCoachSuggestionDoc(state.planWeek)?.slots)
+    : false;
   let html=`<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
     <span class="card-title-lg">Week ${state.planWeek}</span>
     <span class="badge ${deload?'badge-warning':'badge-accent'}">${deload?'DELOAD':phase}</span>
+    ${hasCoachTargets ? '<span class="badge badge-blue">AI Coach</span>' : ''}
     ${deload?'<span style="font-size:12px;color:var(--warning)">Reduce load 40% · Focus on technique</span>':''}
   </div>
   <div style="overflow-x:auto">
@@ -36,6 +43,9 @@ function renderPlanPage() {
       block.exercises.forEach((ex,ei)=>{
         const isSuper=block.type==='superset'||block.type==='core';
         const slotId = typeof getExerciseSlotId === 'function' ? getExerciseSlotId(dayKey, bi, ei) : null;
+        const slotSuggestion = typeof getCoachSlotSuggestion === 'function'
+          ? getCoachSlotSuggestion(state.planWeek, slotId)
+          : null;
         // Plan view shows the first set's suggestion as the slot headline target.
         const restSec=typeof resolveCoachRestTarget==='function'
           ? resolveCoachRestTarget(ex, block, ei, state.planWeek, slotId, 1)
@@ -59,6 +69,7 @@ function renderPlanPage() {
           <td style="color:var(--accent);font-weight:700;white-space:nowrap">${first?day.label.split('—')[0].trim():''}</td>
           <td>
             <span style="font-weight:600">${ex.name}</span>
+            ${slotSuggestion ? '<span class="badge badge-blue" style="margin-left:6px">AI Coach</span>' : ''}
             ${isSuper?`<span class="plan-superset-tag">${block.type==='core'?'Core':block.label}</span>`:''}
           </td>
           <td>${ex.sets}</td>

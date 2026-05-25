@@ -554,9 +554,13 @@
     const name = bundle?.displayName;
     if (!name) return;
     document.querySelectorAll(".user-name").forEach((el) => { el.textContent = name; });
-    const sub = bundle.programStartDate
-      ? `Starts ${bundle.programStartDate} · ${bundle.phaseLabel?.(1) || "Week 1"}`
-      : null;
+    // Sidebar/account chips should reflect the athlete's current program position, not the start date.
+    const liveWeek = Math.min(
+      12,
+      Math.max(1, parseInt(typeof state !== "undefined" ? state.currentWeek : 1, 10) || getCalendarProgramWeek() || 1),
+    );
+    const phase = bundle.phaseLabel?.(liveWeek) || `Phase ${liveWeek <= 6 ? 1 : 2}`;
+    const sub = `Week ${liveWeek} · ${phase}`;
     if (sub) {
       document.querySelectorAll(".user-sub").forEach((el) => { el.textContent = sub; });
     }

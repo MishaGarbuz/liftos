@@ -3,6 +3,9 @@
    DASHBOARD
 ═══════════════════════════════════════════════════════════════ */
 function renderDashboard() {
+  if (typeof updateUserChrome === 'function' && typeof getActiveProgramBundle === 'function') {
+    updateUserChrome(getActiveProgramBundle());
+  }
   const completed=state.sessions.filter(s=>s.completed);
   document.getElementById('kpiSessions').textContent=completed.length;
   document.getElementById('dashWeekNum').textContent=state.currentWeek;
