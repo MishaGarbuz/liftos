@@ -218,6 +218,7 @@ function persistLocalState() {
       currentDay: state.currentDay,
       sessions: state.sessions,
       coachSuggestions: state.coachSuggestions,
+      customLifts: state.customLifts,
       prefs: state.prefs,
     }));
   } catch (e) { console.warn('localStorage save failed', e); }
@@ -243,6 +244,7 @@ function loadLocalState() {
     if (data.currentWeek) state.currentWeek = data.currentWeek;
     if (data.currentDay) state.currentDay = data.currentDay;
     if (data.prefs) state.prefs = { ...state.prefs, ...data.prefs };
+    if (Array.isArray(data.customLifts)) state.customLifts = data.customLifts;
   } catch (e) { console.warn('localStorage load failed', e); }
 }
 

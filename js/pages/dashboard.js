@@ -10,13 +10,14 @@ function renderDashboard() {
   document.getElementById('kpiSessions').textContent=completed.length;
   document.getElementById('dashWeekNum').textContent=state.currentWeek;
 
-  // Best E1RM
-  let bestE1rm=0, bestLift='bench press';
-  completed.forEach(s=>s.sets.forEach(set=>{
-    if((set.e1rm||0)>bestE1rm){ bestE1rm=set.e1rm; bestLift=set.exercise||'bench press'; }
+  // Best set weight across all completed sessions (actual, not estimated).
+  let bestWeight = 0, bestLift = 'top set';
+  completed.forEach(s => s.sets.forEach(set => {
+    const w = parseFloat(set.weight) || 0;
+    if (w > bestWeight) { bestWeight = w; bestLift = set.exercise || 'top set'; }
   }));
-  document.getElementById('kpiE1rm').textContent=bestE1rm>0?formatWeightWithUnit(bestE1rm):'—';
-  document.getElementById('kpiE1rmLabel').textContent=bestLift.toLowerCase();
+  document.getElementById('kpiE1rm').textContent = bestWeight > 0 ? formatWeightWithUnit(bestWeight) : '—';
+  document.getElementById('kpiE1rmLabel').textContent = bestLift.toLowerCase();
 
   // Weekly sets + week progress
   const weekProgress=getWeekGymProgress(state.currentWeek);
@@ -95,24 +96,29 @@ function renderDashboard() {
   });
   observeChartContainer(state.dashVolumeChart, document.getElementById('dashVolumeChart')?.parentElement);
 
-  // E1RM chart
-  const e1rmActual=Array(12).fill(null);
-  completed.forEach(s=>{
-    const wi=s.week-1;
-    if(wi>=0&&wi<12){
-      const best=Math.max(...s.sets.map(x=>x.e1rm||0));
-      if(best>0) e1rmActual[wi]=Math.max(e1rmActual[wi]||0,best);
-    }
-  });
-  if(state.dashE1rmChart) state.dashE1rmChart.destroy();
-  const primaryLift = (typeof LIFT_KEYS !== 'undefined' && LIFT_KEYS[0]) || 'Bench Press';
-  const targetSeries = (LIFT_TARGETS && LIFT_TARGETS[primaryLift]) || [];
+  // Primary lift actual-weight chart (replaces E1RM estimate).
+  // Uses the same liftDef helpers from progress.js.
+  const primaryDef = typeof getActiveLiftDefs === 'function'
+    ? getActiveLiftDefs()[0]
+    : { key: 'Bench Press', match: ['bench press'] };
+  const primaryActuals = typeof actualWeightsForDef === 'function'
+    ? actualWeightsForDef(primaryDef)
+    : Array(12).fill(null);
   const e1rmTitle = document.querySelector('#page-dashboard .card-title');
-  if (e1rmTitle) e1rmTitle.textContent = `Best E1RM Progress (${primaryLift})`;
-  const e1rmDatasets=[
-    {label:'Target',data:targetSeries.map(toDisplayUnit),borderColor:chartC.targetLine,borderDash:[4,3],borderWidth:1.5,pointRadius:2,tension:0.4},
-    {label:'Actual',data:e1rmActual.map(toDisplayUnit),borderColor:chartC.accent,backgroundColor:chartC.accentFill,borderWidth:2,pointRadius:3,pointBackgroundColor:chartC.accent,tension:0.4,fill:true}
-  ];
+  if (e1rmTitle) e1rmTitle.textContent = `${primaryDef.key} — top-set weight`;
+  if(state.dashE1rmChart) state.dashE1rmChart.destroy();
+  const e1rmDatasets=[{
+    label: 'Best set weight',
+    data: primaryActuals.map(v => v == null ? null : toDisplayUnit(v)),
+    borderColor: chartC.accent,
+    backgroundColor: chartC.accentFill,
+    borderWidth: 2,
+    pointRadius: primaryActuals.map(v => v != null ? 3 : 0),
+    pointBackgroundColor: chartC.accent,
+    tension: 0.4,
+    fill: true,
+    spanGaps: true,
+  }];
   state.dashE1rmChart=new Chart(document.getElementById('dashE1rmChart'),{
     type:'line',
     data:{

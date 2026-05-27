@@ -40,6 +40,7 @@
     global.DAYS = bundle.gymDays.slice();
     global.SCHEDULE_DAYS = bundle.scheduleDays;
     global.PLAN_PROGRESSIONS = bundle.planProgressions || {};
+    global.LIFT_DEFS = bundle.liftDefs || [];
     global.LIFT_KEYS = bundle.liftKeys || [];
     global.LIFT_TARGETS = bundle.liftTargets || {};
     global.DELOAD_WEEKS = bundle.deloadWeeks || [6, 12];
@@ -49,8 +50,9 @@
 
   function syncStateForProgram(bundle) {
     if (typeof state === "undefined" || !bundle) return;
-    if (bundle.liftKeys?.length && !bundle.liftKeys.includes(state.progressLift)) {
-      state.progressLift = bundle.liftKeys[0];
+    const defKeys = (bundle.liftDefs || bundle.liftKeys || []).map(d => typeof d === 'string' ? d : d.key);
+    if (defKeys.length && !defKeys.includes(state.progressLift)) {
+      state.progressLift = defKeys[0];
     }
     const gymDays = bundle.gymDays || [];
     if (gymDays.length && !gymDays.includes(state.currentDay)) {

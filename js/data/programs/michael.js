@@ -242,15 +242,23 @@ const MICHAEL_PLAN_PROGRESSIONS = {
   ]
 };
 
-const MICHAEL_LIFT_KEYS = ["Bench Press","Pull-Up (E1RM)","Barbell Row","OHP","RDL","Hip Thrust"];
-const MICHAEL_LIFT_TARGETS = {
-  "Bench Press":     [62,64,67,69,72,43,74,77,79,82,84,51],
-  "Pull-Up (E1RM)":  [80,82,84,86,89,55,91,94,96,99,102,61],
-  "Barbell Row":     [72,74,77,79,82,49,84,87,89,92,94,57],
-  "OHP":             [45,46,48,49,51,31,52,54,55,57,58,35],
-  "RDL":             [82,84,87,90,93,57,95,98,101,104,107,64],
-  "Hip Thrust":      [62,64,67,69,72,43,74,77,79,82,84,51]
-};
+/**
+ * Main lifts for the progress page.
+ * `match` — array of substrings matched case-insensitively against logged exercise names.
+ * `trackReps` — if true, a second tab tracks bodyweight reps (weight=0 sets) separately.
+ */
+const MICHAEL_LIFT_DEFS = [
+  { key: "Bench Press",   match: ["incline barbell bench", "bench press", "smith machine bench"] },
+  { key: "Pull-Up",       match: ["pull-up", "pull up", "weighted pull"], trackReps: true },
+  { key: "Barbell Row",   match: ["barbell row", "chest-supported db row", "chest supported db row", "cable row"] },
+  { key: "OHP",           match: ["overhead press", "ohp", "db shoulder press", "seated db shoulder"] },
+  { key: "RDL",           match: ["rdl", "romanian deadlift", "stiff leg"] },
+  { key: "Hip Thrust",    match: ["hip thrust"] },
+];
+
+// Legacy — kept so existing code referencing LIFT_KEYS / LIFT_TARGETS doesn't crash.
+const MICHAEL_LIFT_KEYS = MICHAEL_LIFT_DEFS.map(d => d.key);
+const MICHAEL_LIFT_TARGETS = {};
 
 const MICHAEL_SCHEDULE_DAYS = [
   { day:"Mon", label:"Monday", type:"gym", typeClass:"gym", session:"Upper A", notes:"Push · Chest / Shoulders / Triceps\n60–70 min session" },
@@ -306,6 +314,7 @@ const MICHAEL_PROGRAM_BUNDLE = {
   days: MICHAEL_PROGRAM_DAYS,
   planProgressions: MICHAEL_PLAN_PROGRESSIONS,
   scheduleDays: MICHAEL_SCHEDULE_DAYS,
+  liftDefs: MICHAEL_LIFT_DEFS,
   liftKeys: MICHAEL_LIFT_KEYS,
   liftTargets: MICHAEL_LIFT_TARGETS,
   setsForWeek(_tier, week) {

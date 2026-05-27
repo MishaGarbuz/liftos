@@ -12,6 +12,7 @@ let state = {
   dashE1rmChart: null,
   planWeek: 1,
   progressLift: "Bench Press",
+  customLifts: [], // user-added lift keys beyond the program defaults
   prefs: { units: 'kg', theme: 'auto', palette: 'ember', timerVibrate: true, timerNotify: true }
 };
 

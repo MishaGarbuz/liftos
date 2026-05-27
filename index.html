@@ -310,21 +310,42 @@
     ═══════════════════════════════════════════════════════════ -->
     <div class="page" id="page-progress">
       <div class="section-heading">Progression Charts</div>
-      <div class="section-sub">Estimated 1RM tracked across 12 weeks</div>
+      <div class="section-sub">Actual top-set weight · tracked across 12 weeks</div>
 
       <div class="card" style="margin-bottom:16px">
         <div class="card-header" style="margin-bottom:12px">
-          <span class="card-title-lg" id="progressChartTitle">Bench Press — E1RM</span>
+          <span class="card-title-lg" id="progressChartTitle">Bench Press</span>
           <span class="badge badge-accent" id="progressPhase">Phase 1</span>
         </div>
         <div class="lift-chips-scroll">
           <div class="lift-chips" id="liftChips"></div>
+          <button type="button" class="lift-chip lift-chip-add" id="addLiftChipBtn" onclick="openLiftPicker()" title="Track another lift">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add lift
+          </button>
+        </div>
+        <!-- Pull-up / reps tabs — shown only when a trackReps lift is selected -->
+        <div class="progress-mode-tabs hidden" id="progressModeTabs">
+          <button class="progress-mode-tab active" id="progressModeWeight" onclick="setProgressMode('weight')">Weighted</button>
+          <button class="progress-mode-tab" id="progressModeReps" onclick="setProgressMode('reps')">Bodyweight reps</button>
         </div>
         <div class="chart-wrap"><canvas id="progressChart"></canvas></div>
       </div>
 
       <div class="sparkline-scroll">
         <div class="sparkline-grid" id="sparklineGrid"></div>
+      </div>
+    </div>
+
+    <!-- Lift picker modal -->
+    <div class="modal-overlay hidden" id="liftPickerOverlay" onclick="if(event.target===this)closeLiftPicker()">
+      <div class="modal" style="max-width:380px">
+        <div class="modal-header">
+          <span class="modal-title">Track a lift</span>
+          <button type="button" class="modal-close" onclick="closeLiftPicker()">✕</button>
+        </div>
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">Choose an exercise from your program to add to the progress charts.</p>
+        <div id="liftPickerList" style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto"></div>
       </div>
     </div>
 

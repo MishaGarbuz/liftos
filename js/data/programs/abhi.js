@@ -316,20 +316,16 @@ const ABHI_PROGRAM_BUNDLE = {
     { day: "Sat", label: "Saturday", type: "rest", typeClass: "rest", session: "Light activity", notes: "Rest or light walk / sport" },
     { day: "Sun", label: "Sunday", type: "rest", typeClass: "rest", session: "Rest", notes: "Full rest" },
   ],
-  liftKeys: [
-    "Flat Dumbbell Bench Press",
-    "Goblet Squat",
-    "Dumbbell Shoulder Press",
-    "Lat Pulldown (wide overhand)",
-    "Dumbbell Romanian Deadlift",
+  liftDefs: [
+    { key: "DB Bench Press",    match: ["flat dumbbell bench press", "db bench press"] },
+    { key: "Goblet Squat",      match: ["goblet squat"] },
+    { key: "Shoulder Press",    match: ["dumbbell shoulder press", "machine shoulder press", "landmine press"] },
+    { key: "Lat Pulldown",      match: ["lat pulldown"] },
+    { key: "DB RDL",            match: ["dumbbell romanian deadlift", "db romanian deadlift"] },
   ],
-  liftTargets: {
-    "Flat Dumbbell Bench Press": [17.5, 17.5, 17.5, 12, 20, 20, 20, 12, 22.5, 22.5, 22.5, 12],
-    "Goblet Squat": [18, 18, 18, 12, 20, 20, 20, 12, 22, 22, 22, 12],
-    "Dumbbell Shoulder Press (seated)": [14, 14, 14, 10, 16, 16, 16, 10, 18, 18, 18, 10],
-    "Lat Pulldown (wide overhand)": [45, 45, 45, 30, 50, 50, 50, 30, 55, 55, 55, 30],
-    "Dumbbell Romanian Deadlift": [12.5, 12.5, 12.5, 8, 14, 14, 14, 8, 16, 16, 16, 8],
-  },
+  // Legacy stubs so shared code doesn't crash.
+  get liftKeys() { return this.liftDefs.map(d => d.key); },
+  liftTargets: {},
   setsForWeek(tier, week) {
     const deload = [4, 8].includes(week);
     if (deload) return 2;
