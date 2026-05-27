@@ -212,3 +212,6 @@ Working reference for **where features live** and **how they behave**. Update th
 | 2026-05-25 | AI Coach progression targets wired end-to-end: slot-summary payload builder, week-scoped suggestion cache, athlete overrides, and log/plan target consumption. |
 | 2026-05-25 | AI Coach visibility pass: week banners, manual regenerate action, plan-row indicators, and tighter mobile log columns so the tick stays on screen. |
 | 2026-05-25 | Coach generation now waits longer, surfaces real API timeout/error messages in the UI, and gives the Bedrock-backed Lambda a 45s timeout. |
+| 2026-05-27 | **Per-user week isolation**: `getNextIncompleteLogSlot` now derives week position from the user's own sessions only — no shared calendar date floor. Prevents new users landing in a week another user has already advanced to. |
+| 2026-05-27 | **Skip workout**: "Skip workout" button in log session actions. Skipped slots are recorded in DynamoDB (`status=skipped`), shown with a dimmed `–` tab badge and an in-page skipped banner with Undo. PATCH `/sessions/{id}` endpoint added. |
+| 2026-05-27 | **AI Coach hold on skip**: `build_slot_summary` flags `sessionWasSkipped`; `next_weight_from_summary` returns a hold decision (no increase); coach prompt rule #10 instructs LLM to do the same. |
