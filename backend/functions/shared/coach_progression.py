@@ -173,11 +173,25 @@ def summarize_performed_sets(sets):
     return out
 
 
+def was_session_skipped_for_day_week(sessions, day, week):
+    """Return True if the athlete explicitly skipped this day/week slot."""
+    return any(
+        s.get('status') == 'skipped' and s.get('day') == day and int(s.get('week', 0)) == int(week)
+        for s in sessions
+    )
+
+
 def build_slot_summary(slot, target_week, sessions, overrides=None):
     """Compact the latest relevant slot history into a Bedrock-friendly summary."""
     prior = latest_completed_session_for_day_week(sessions, slot['day'], target_week - 1) if int(target_week) > 1 else None
     if not prior and int(target_week) > 1:
         prior = latest_completed_session_before_week(sessions, slot['day'], target_week)
+
+    # If the most recent data-source week was skipped, treat as missing data and
+    # flag so the progression engine holds (does not increase) targets.
+    prior_week = int(target_week) - 1
+    session_was_skipped = prior_week >= 1 and was_session_skipped_for_day_week(sessions, slot['day'], prior_week)
+
     matched_sets = summarize_performed_sets([s for s in (prior or {}).get('sets', []) if set_matches_slot(s, slot)])
     actual_name = None
     if matched_sets:
@@ -198,7 +212,10 @@ def build_slot_summary(slot, target_week, sessions, overrides=None):
         'performedSets': matched_sets,
         'minReps': min_reps,
         'maxReps': max_reps,
-        'completionSignal': 'completed' if len(matched_sets) >= int(slot['exercise'].get('sets', 1)) else ('partial' if matched_sets else 'missing'),
+        'sessionWasSkipped': session_was_skipped,
+        'completionSignal': 'skipped' if session_was_skipped else (
+            'completed' if len(matched_sets) >= int(slot['exercise'].get('sets', 1)) else ('partial' if matched_sets else 'missing')
+        ),
         'suggestionBaseline': {
             'weightKg': float(slot['exercise'].get('weight', 0) or 0),
             'repsTarget': slot['exercise'].get('repsTarget'),
@@ -212,6 +229,14 @@ def build_slot_summary(slot, target_week, sessions, overrides=None):
 def next_weight_from_summary(summary, is_deload=False):
     baseline = float(summary['suggestionBaseline'].get('weightKg', 0) or 0)
     sets = summary.get('performedSets') or []
+
+    # If the athlete skipped the previous session, hold targets at the most recent
+    # completed level (or authored baseline) — do not increase load.
+    if summary.get('sessionWasSkipped'):
+        hold_weight = max(float(s.get('weightKg', 0) or 0) for s in sets) if sets else baseline
+        hold_weight = max(0, round_to_increment(hold_weight or baseline, 0.5))
+        return hold_weight, 'hold', 'session_skipped', 'Previous session was skipped — holding targets to prevent overtraining.'
+
     if not sets:
         return max(0, round_to_increment(baseline * (0.6 if is_deload else 1.0), 0.5)), 'fallback_baseline', 'insufficient_data', 'Using authored baseline — not enough recent data.'
     max_weight = max(float(s.get('weightKg', 0) or 0) for s in sets)

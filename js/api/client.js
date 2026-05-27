@@ -268,6 +268,8 @@ function mapApiSession(s, sets) {
       setNumber: parseInt(set.setNumber, 10) || i + 1
     })),
     completed: s.status === 'completed',
+    skipped: s.status === 'skipped',
+    skipReason: s.skipReason || '',
     completedAt: s.updatedAt || s.createdAt
   };
 }
@@ -373,6 +375,37 @@ async function ensureCoachSuggestionsForWeek(week, refresh = false, options = {}
     if (throwOnError) throw e;
     return state.coachSuggestions?.[coachWeekKey(wk)] || null;
   }
+}
+
+/**
+ * Mark a session slot as skipped in DynamoDB.
+ * If a cloud session already exists for this slot, PATCHes it; otherwise creates one
+ * with status=skipped so the backend records it per-user.
+ */
+async function skipSessionInApi(week, day, dayKey, skipReason = '') {
+  if (!apiOnline) return null;
+  const existing = state.sessions.find(
+    (s) => s.week === week && s.day === day && !s.completed,
+  );
+  const sid = existing?.sessionId || crypto.randomUUID();
+  if (existing?.sessionId) {
+    return apiCall('PATCH', `/sessions/${encodeURIComponent(sid)}`, {
+      status: 'skipped',
+      skipReason,
+    });
+  }
+  // No existing session — create a skipped one so it's recorded in Dynamo.
+  return apiCall('POST', '/sessions', {
+    sessionId: sid,
+    week,
+    day: PROGRAM?.[day]?.label || day,
+    dayKey: dayKey || day.toLowerCase(),
+    date: new Date().toISOString().slice(0, 10),
+    status: 'skipped',
+    skipReason,
+    totalSets: 0,
+    completedSets: 0,
+  });
 }
 
 async function saveCoachSuggestionOverride(week, slotId, override) {
@@ -1050,6 +1083,9 @@ async function handleLogin(e) {
     else btn.textContent = 'Set password & sign in';
   }
 }
+
+// Expose skip helper so log.js can call it without importing the whole module.
+window.skipSessionInApi = skipSessionInApi;
 
 function exportData() {
   const data={exportedAt:new Date().toISOString(),currentWeek:state.currentWeek,sessions:state.sessions,prefs:state.prefs};

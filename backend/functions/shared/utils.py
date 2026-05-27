@@ -27,6 +27,21 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+def to_dynamo_compatible(value):
+    """Recursively replace Python floats with Decimals for boto3 DynamoDB writes."""
+    if isinstance(value, bool) or value is None:
+        return value
+    if isinstance(value, float):
+        return decimal.Decimal(str(value))
+    if isinstance(value, list):
+        return [to_dynamo_compatible(item) for item in value]
+    if isinstance(value, tuple):
+        return [to_dynamo_compatible(item) for item in value]
+    if isinstance(value, dict):
+        return {key: to_dynamo_compatible(item) for key, item in value.items()}
+    return value
+
+
 def get_user_sub(event):
     claims = (event.get('requestContext') or {}).get('authorizer', {}).get('claims', {})
     return claims.get('sub') or ''

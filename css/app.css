@@ -193,6 +193,15 @@ a{color:inherit;text-decoration:none}
 .day-tab.active{background:var(--accent);color:#fff}
 .day-tab.completed:not(.active){color:var(--success)}
 .day-tab.completed:not(.active)::after{content:' ✓';font-size:11px;opacity:0.9}
+.day-tab.skipped:not(.active){color:var(--text-muted);opacity:0.6}
+.day-tab.skipped:not(.active)::after{content:' –';font-size:11px;opacity:0.7}
+.log-skipped-banner{display:flex;align-items:flex-start;gap:14px;padding:18px 20px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border);color:var(--text-muted);margin-bottom:16px}
+.log-skipped-banner svg{flex-shrink:0;margin-top:2px;opacity:0.5}
+.log-skipped-banner strong{display:block;color:var(--text);font-size:14px;margin-bottom:4px}
+.log-skipped-banner p{margin:0;font-size:13px}
+.log-skipped-banner .btn{margin-left:auto;flex-shrink:0;white-space:nowrap}
+.btn-skip-session{color:var(--text-muted)}
+.btn-skip-session:hover{color:var(--text)}
 .log-completed-banner{background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.04));border:1px solid rgba(34,197,94,0.35);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:16px}
 .log-completed-banner h3{font-size:15px;font-weight:700;color:var(--success);margin-bottom:6px;display:flex;align-items:center;gap:8px}
 .log-completed-banner p{font-size:13px;color:var(--text-muted);line-height:1.5}

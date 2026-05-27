@@ -2,9 +2,9 @@
 from copy import deepcopy
 
 try:
-    from shared.utils import table, now_iso
+    from shared.utils import table, now_iso, to_dynamo_compatible
 except ImportError:
-    from utils import table, now_iso
+    from utils import table, now_iso, to_dynamo_compatible
 
 SUGGESTIONS_PREFIX = 'SUGGESTIONS#WEEK#'
 
@@ -79,7 +79,7 @@ def put_generated_suggestions(user_pk, week, base_suggestions, source='fallback'
     }
     if prompt_meta:
         item['promptMeta'] = prompt_meta
-    table.put_item(Item=item)
+    table.put_item(Item=to_dynamo_compatible(item))
     return item
 
 
@@ -101,5 +101,5 @@ def put_suggestion_override(user_pk, week, slot_id, override):
     }
     if existing.get('promptMeta'):
         item['promptMeta'] = existing['promptMeta']
-    table.put_item(Item=item)
+    table.put_item(Item=to_dynamo_compatible(item))
     return item

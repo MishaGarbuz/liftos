@@ -90,6 +90,9 @@ Required decision policy:
    a short note.
 9. If data is insufficient, fall back to the authored baseline and mark the
    decision as conservative.
+10. If a slot's completionSignal is 'skipped', the athlete explicitly skipped
+    that session. HOLD all targets exactly (no weight or rep increase). Set
+    decision to 'hold' and note that it was skipped to prevent overtraining.
 
 Output:
 - Return JSON only.

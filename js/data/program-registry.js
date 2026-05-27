@@ -446,14 +446,27 @@
     return Math.min(12, Math.floor(diffDays / 7) + 1);
   }
 
+  /** Return true if a slot is occupied (completed or skipped) so it won't be re-offered. */
+  function isLogSlotOccupied(week, day) {
+    const sessions = typeof state !== "undefined" ? state.sessions : [];
+    return sessions.some(
+      (s) => s.week === week && s.day === day && (s.completed || s.skipped),
+    );
+  }
+
   /**
-   * Next gym slot to log: in-progress session first, else earliest (week, day) not completed.
+   * Next gym slot to log: in-progress session first, then the earliest
+   * (week, day) that hasn't been completed or skipped.
+   * Week position is derived purely from the user's own session history —
+   * never from a shared calendar date — so each user progresses at their
+   * own pace regardless of when they signed up relative to another user.
    */
   function getNextIncompleteLogSlot() {
     const days = global.DAYS || [];
     const sessions = typeof state !== "undefined" ? state.sessions : [];
 
-    const inProgress = sessions.filter((s) => !s.completed && days.includes(s.day));
+    // Prefer an in-progress session (highest week first so we don't regress).
+    const inProgress = sessions.filter((s) => !s.completed && !s.skipped && days.includes(s.day));
     if (inProgress.length) {
       inProgress.sort((a, b) => {
         if (b.week !== a.week) return b.week - a.week;
@@ -462,16 +475,20 @@
       return { week: inProgress[0].week, day: inProgress[0].day };
     }
 
-    const maxFromSessions = sessions.reduce((m, s) => Math.max(m, s.week || 1), 1);
-    const calWeek = getCalendarProgramWeek();
-    const maxWeek = Math.min(12, Math.max(maxFromSessions, calWeek || 1, 1));
+    // Max week comes from the user's own sessions only, defaulting to 1.
+    // We intentionally do NOT use getCalendarProgramWeek() here because that
+    // would advance a new user's week counter based on a shared program start
+    // date, causing them to land in a week that another user has already logged.
+    const maxFromSessions = sessions.reduce((m, s) => Math.max(m, s.week || 1), 0);
+    const maxWeek = maxFromSessions > 0 ? Math.min(12, maxFromSessions) : 1;
 
     for (let w = 1; w <= maxWeek; w += 1) {
       for (const d of days) {
-        if (!isLogSlotCompleted(w, d)) return { week: w, day: d };
+        if (!isLogSlotOccupied(w, d)) return { week: w, day: d };
       }
     }
 
+    // All weeks up to maxWeek are occupied — advance to the next week.
     const nextWeek = Math.min(12, maxWeek + 1);
     return { week: nextWeek, day: days[0] || "Mon" };
   }
@@ -485,15 +502,17 @@
     return slot;
   }
 
-  /** Prefer today's gym day when still open this calendar week; else next incomplete. */
+  /** Prefer today's gym day if it's the next unoccupied slot; else next incomplete. */
   function applyLogSessionFocus(preferToday = false) {
     const days = global.DAYS || [];
     if (preferToday) {
       const dayMap = { 0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" };
       const today = dayMap[new Date().getDay()];
       if (days.includes(today)) {
-        const week = getCalendarProgramWeek() || state.currentWeek || 1;
-        if (!isLogSlotCompleted(week, today)) {
+        // Use state.currentWeek — already set from the user's own sessions — rather
+        // than the shared calendar week, which can bleed across users.
+        const week = state.currentWeek || 1;
+        if (!isLogSlotOccupied(week, today)) {
           state.currentWeek = week;
           state.currentDay = today;
           if (typeof persistLocalState === "function") persistLocalState();
@@ -612,6 +631,7 @@
   global.isDeloadWeek = isDeloadWeek;
   global.getWeekGymProgress = getWeekGymProgress;
   global.getCalendarProgramWeek = getCalendarProgramWeek;
+  global.isLogSlotOccupied = isLogSlotOccupied;
   global.getNextIncompleteLogSlot = getNextIncompleteLogSlot;
   global.applyNextIncompleteLogSlot = applyNextIncompleteLogSlot;
   global.applyLogSessionFocus = applyLogSessionFocus;

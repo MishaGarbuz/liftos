@@ -893,9 +893,12 @@ function renderLogPage() {
   DAYS.forEach(d=>{
     const btn = document.createElement('button');
     const done = getCompletedSessionForSlot(state.currentWeek, d);
-    btn.className = 'day-tab'+(d===state.currentDay?' active':'')+(done?' completed':'');
+    const skipped = !done && state.sessions.some(
+      (s) => s.week === state.currentWeek && s.day === d && s.skipped,
+    );
+    btn.className = 'day-tab'+(d===state.currentDay?' active':'')+(done?' completed':'')+(skipped?' skipped':'');
     btn.textContent = d;
-    btn.title = done ? 'Completed — view in history' : '';
+    btn.title = done ? 'Completed — view in history' : skipped ? 'Skipped' : '';
     btn.onclick = ()=>{ state.currentDay=d; renderLogPage(); };
     dt.appendChild(btn);
   });
@@ -906,6 +909,9 @@ function renderLogPage() {
   );
 
   const completed = getCompletedSessionForSlot(state.currentWeek, state.currentDay);
+  const skippedSession = !completed && state.sessions.find(
+    (s) => s.week === state.currentWeek && s.day === state.currentDay && s.skipped,
+  );
   const actions = document.getElementById('logSessionActions');
   const wc = document.getElementById('workoutContent');
   wc.innerHTML = '';
@@ -919,6 +925,23 @@ function renderLogPage() {
     const repeatBtn = document.getElementById('repeatLastBtn');
     if (repeatBtn) repeatBtn.style.display = 'none';
     wc.innerHTML = '<p class="log-completed-hint">This session is finished. Use the button above to review your logged sets, or switch to another day to log a new workout.</p>';
+    return;
+  }
+
+  if (skippedSession) {
+    hideLogCompletedBanner();
+    document.getElementById('deloadBanner').style.display = 'none';
+    if (actions) actions.classList.add('is-hidden');
+    const dayLabel = PROGRAM[state.currentDay]?.label || state.currentDay;
+    wc.innerHTML = `
+      <div class="log-skipped-banner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <div>
+          <strong>${dayLabel} – Week ${state.currentWeek} skipped</strong>
+          <p>AI Coach will hold targets — no increase next week for this slot.</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="undoSkipSession()">Undo skip</button>
+      </div>`;
     return;
   }
 
@@ -1798,6 +1821,78 @@ async function saveSessionProgress() {
   persistLocalState();
   showSaveToast(apiOnline ? 'Progress saved to cloud ✓' : 'Progress saved locally ✓');
 }
+
+/**
+ * Skip the current session slot.
+ * - Marks it skipped in local state so getNextIncompleteLogSlot advances past it.
+ * - Syncs the skip to the backend (status=skipped) so the AI Coach can treat
+ *   this slot as "hold targets — do not increase" for the following week.
+ * - Advances the log view to the next incomplete slot.
+ */
+async function skipSession() {
+  const week = state.currentWeek;
+  const day = state.currentDay;
+
+  if (!confirm(`Skip ${PROGRAM[day]?.label || day} – Week ${week}?\n\nAI Coach will hold targets at this week's level (no increase) when generating next week's plan.`)) {
+    return;
+  }
+
+  // Remove any in-progress session for this slot from local state and mark skipped.
+  state.sessions = state.sessions.filter(
+    (s) => !(s.week === week && s.day === day && !s.completed),
+  );
+
+  // Record a skipped session locally so isLogSlotOccupied returns true.
+  const skippedSession = {
+    sessionId: crypto.randomUUID(),
+    week,
+    day,
+    date: new Date().toISOString().slice(0, 10),
+    completed: false,
+    skipped: true,
+    sets: [],
+  };
+  state.sessions.push(skippedSession);
+
+  if (typeof persistLocalState === 'function') persistLocalState();
+  if (typeof applyNextIncompleteLogSlot === 'function') applyNextIncompleteLogSlot();
+
+  // Sync to backend asynchronously — fire and forget with a silent retry.
+  if (typeof skipSessionInApi === 'function') {
+    const dayKey = day.toLowerCase();
+    skipSessionInApi(week, day, dayKey, '').catch((e) =>
+      console.warn('skip sync failed', e),
+    );
+  }
+
+  showSaveToast(`Week ${week} ${PROGRAM[day]?.label || day} skipped — AI Coach will hold targets`);
+  renderLogPage();
+}
+
+global.skipSession = skipSession;
+
+/** Remove a skipped-session marker so the slot can be logged normally again. */
+function undoSkipSession() {
+  const week = state.currentWeek;
+  const day = state.currentDay;
+  const idx = state.sessions.findIndex(
+    (s) => s.week === week && s.day === day && s.skipped,
+  );
+  if (idx < 0) return;
+  const sid = state.sessions[idx].sessionId;
+  state.sessions.splice(idx, 1);
+  if (typeof persistLocalState === 'function') persistLocalState();
+  // Best-effort backend delete (no dedicated PATCH to in_progress yet; we
+  // just delete the skipped record so the slot is open again).
+  if (apiOnline && sid) {
+    apiCall('DELETE', `/sessions/${encodeURIComponent(sid)}`).catch((e) =>
+      console.warn('undo skip delete failed', e),
+    );
+  }
+  showSaveToast('Skip undone — you can now log this session');
+  renderLogPage();
+}
+global.undoSkipSession = undoSkipSession;
 
 function showSaveToast(msg) {
   const t = document.getElementById('saveToast');

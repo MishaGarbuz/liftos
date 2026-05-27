@@ -187,7 +187,7 @@ Resources:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt CognitoUserPool.Arn
       Cors:
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: "'https://www.auxos.app,https://auxos.app,https://www.liftos.net,https://liftos.net'"
 
@@ -217,6 +217,12 @@ Resources:
             RestApiId: !Ref LiftingTrackerApi
             Path: /sessions/{sessionId}
             Method: GET
+        PatchSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LiftingTrackerApi
+            Path: /sessions/{sessionId}
+            Method: PATCH
         DeleteSession:
           Type: Api
           Properties:

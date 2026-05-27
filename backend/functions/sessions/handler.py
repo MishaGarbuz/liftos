@@ -50,6 +50,10 @@ def lambda_handler(event, context):
     if method == 'POST':
         body = json.loads(event.get('body') or '{}')
         sid = body.get('sessionId') or str(uuid.uuid4())
+        status = body.get('status', 'in_progress')
+        allowed_statuses = {'in_progress', 'completed', 'skipped'}
+        if status not in allowed_statuses:
+            status = 'in_progress'
         item = {
             'pk': user_pk,
             'sk': f'SESSION#{sid}',
@@ -58,15 +62,39 @@ def lambda_handler(event, context):
             'day': body.get('day', 'Monday'),
             'dayKey': body.get('dayKey', 'mon'),
             'date': body.get('date', now_iso()[:10]),
-            'status': body.get('status', 'in_progress'),
+            'status': status,
             'totalSets': int(body.get('totalSets', 0)),
             'completedSets': int(body.get('completedSets', 0)),
             'notes': body.get('notes', ''),
+            'skipReason': body.get('skipReason', ''),
             'createdAt': body.get('createdAt', now_iso()),
             'updatedAt': now_iso(),
         }
         table.put_item(Item=item)
         return resp(event, 201, item)
+
+    if method == 'PATCH' and session_id:
+        # Lightweight status-only update (e.g. mark skipped).
+        if not verify_session_owned(event, session_id):
+            return resp(event, 404, {'error': 'Session not found'})
+        body = json.loads(event.get('body') or '{}')
+        status = body.get('status')
+        allowed_statuses = {'in_progress', 'completed', 'skipped'}
+        if status not in allowed_statuses:
+            return resp(event, 400, {'error': f'status must be one of {sorted(allowed_statuses)}'})
+        update_expr = 'SET #st = :st, updatedAt = :ts'
+        expr_names = {'#st': 'status'}
+        expr_vals = {':st': status, ':ts': now_iso()}
+        if 'skipReason' in body:
+            update_expr += ', skipReason = :sr'
+            expr_vals[':sr'] = str(body['skipReason'])[:200]
+        table.update_item(
+            Key={'pk': user_pk, 'sk': f'SESSION#{session_id}'},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_vals,
+        )
+        return resp(event, 200, {'sessionId': session_id, 'status': status})
 
     if method == 'DELETE' and session_id:
         if not verify_session_owned(event, session_id):
