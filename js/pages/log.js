@@ -1432,25 +1432,26 @@ function resolveNextExerciseNameAfter(sid) {
  */
 function getRestTimerContext(sid, currentExName) {
   const exercise = currentExName || getExerciseNameFromCard(getExerciseCard(sid)) || 'Exercise';
-  const defaultNotify = `${exercise}: start your next set`;
 
+  // Mid-exercise: more sets of the same lift coming up.
   if (!sid || !isLastSetOfExercise(sid)) {
-    return { exercise, nextLabel: null, notifyBody: defaultNotify };
+    return { exercise, nextLabel: null, notifyBody: `Next set: ${exercise}` };
   }
 
+  // Last set of this lift → lead with whatever exercise comes next.
   const nextName = resolveNextExerciseNameAfter(sid);
   if (nextName) {
     return {
       exercise,
       nextLabel: `Next: ${nextName}`,
-      notifyBody: `${exercise}: next up — ${nextName}`,
+      notifyBody: `Next up: ${nextName}`,
     };
   }
 
   return {
     exercise,
     nextLabel: 'Last exercise in workout',
-    notifyBody: `${exercise}: last exercise — go when ready`,
+    notifyBody: 'Last exercise — finish strong',
   };
 }
 

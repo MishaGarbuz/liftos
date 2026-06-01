@@ -1,9 +1,10 @@
-const CACHE = 'auxos-shell-v16';
+const CACHE = 'auxos-shell-v17';
 let restTimerTimeout = null;
 let timerEndAt = 0;
 let timerGoPayload = null;   // { title, body } shown when rest ends
 let timerNextLabel = '';     // "Next: …" line shown live during rest
 let restProgressShown = false; // first live banner alerts; later updates are silent
+let restDoneFired = false;     // guard: the rest-over notification fires exactly once
 
 const REST_TAG = 'auxos-rest';
 
@@ -16,6 +17,7 @@ function clearRestTimerSchedule() {
   timerGoPayload = null;
   timerNextLabel = '';
   restProgressShown = false;
+  restDoneFired = false;
 }
 
 /** True when an Auxos window is open and visible — the in-app overlay covers it. */
@@ -60,10 +62,17 @@ async function showRestProgress() {
 }
 
 async function showRestDone() {
+  if (restDoneFired) return; // fire exactly once
+  restDoneFired = true;
+  if (restTimerTimeout) {
+    clearTimeout(restTimerTimeout);
+    restTimerTimeout = null;
+  }
   const payload = timerGoPayload || { title: 'Rest over — GO!', body: 'Start your next set' };
+  const visible = await hasVisibleClient();
   clearRestTimerSchedule();
-  if (await hasVisibleClient()) {
-    // App is visible — let the in-app overlay handle it and clear any live banner.
+  if (visible) {
+    // App is visible — the in-app overlay handles it; clear any live banner.
     closeRestNotifications();
     return;
   }
@@ -81,7 +90,7 @@ async function showRestDone() {
  */
 function armRestTimer() {
   if (restTimerTimeout) clearTimeout(restTimerTimeout);
-  if (!timerEndAt || !timerGoPayload) return;
+  if (!timerEndAt || !timerGoPayload || restDoneFired) return;
   const delay = timerEndAt - Date.now();
   if (delay <= 0) {
     showRestDone();
@@ -91,6 +100,7 @@ function armRestTimer() {
   const chunkMs = Math.min(delay, 10000);
   restTimerTimeout = setTimeout(() => {
     restTimerTimeout = null;
+    if (!timerEndAt || restDoneFired) return; // cancelled or already fired
     if (Date.now() >= timerEndAt) showRestDone();
     else armRestTimer();
   }, chunkMs);

@@ -55,18 +55,6 @@ function cancelRestTimerAlerts() {
   }
 }
 
-function fireRestTimerAlert() {
-  const title = 'Rest over — GO!';
-  const body = getRestNotifyBody();
-  if (state.prefs?.timerNotify === false) return;
-  if (document.visibilityState === 'visible' && document.hasFocus()) return;
-  if ('Notification' in window && Notification.permission === 'granted') {
-    try {
-      new Notification(title, { body, tag: 'auxos-rest', renotify: true });
-    } catch { /* ignore */ }
-  }
-}
-
 function scheduleRestTimerAlerts() {
   if (timerState.mode === 'hold') return;
   cancelRestTimerAlerts();
@@ -74,8 +62,9 @@ function scheduleRestTimerAlerts() {
   const delay = Math.max(0, timerState.endAt - Date.now());
   if (delay <= 0) return;
 
-  timerPageTimeout = setTimeout(fireRestTimerAlert, delay);
-
+  // The service worker is the single owner of the rest-over notification — it
+  // fires exactly once and suppresses itself when the app is visible. We do NOT
+  // fire a page-side Notification here (that produced duplicate alerts).
   if ('serviceWorker' in navigator) {
     const body = getRestNotifyBody();
     const nextLabel = getRestNextLabel();
@@ -176,13 +165,15 @@ function finishTimer() {
   applyAfterRestHighlight();
   clearInterval(timerState.interval);
   timerState.interval = null;
-  cancelRestTimerAlerts();
+  // Don't cancel SW alerts here: the SW owns the single background notification
+  // and suppresses it when the app is visible. Cancelling now would race out the
+  // notification on backgrounded-but-alive sessions. closeTimer() cancels as a
+  // backstop once the overlay dismisses.
   document.getElementById('timerDisplay').className = 'timer-display done';
   document.getElementById('timerBar').className = 'timer-bar done';
   document.getElementById('timerBar').style.width = '100%';
   document.getElementById('timerDisplay').textContent = 'GO!';
   if (state.prefs?.timerVibrate !== false && navigator.vibrate) navigator.vibrate([200, 100, 200]);
-  fireRestTimerAlert();
   if (timerState.exercise) saveExerciseRest(timerState.exercise, timerState.duration);
   timerState.active = false;
   setTimeout(closeTimer, 2500);

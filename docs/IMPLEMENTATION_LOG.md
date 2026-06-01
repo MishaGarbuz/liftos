@@ -61,10 +61,11 @@ Working reference for **where features live** and **how they behave**. Update th
      - Else: next `.exercise-card` in DOM order (respects swaps via `data-exercise-name`).
    - Last exercise in workout → `nextLabel`: `"Last exercise in workout"`.
 5. `startTimer()` stores `nextLabel` + `notifyBody` on `timerState`, updates overlay.
-6. Notifications:
-   - Foreground hidden → `fireRestTimerAlert()` (page `Notification` API).
-   - PWA background → `scheduleRestTimerAlerts()` posts `TIMER_START` to service worker with `endAt`, `goBody`, and `nextLabel`.
-   - `sw.js` re-arms in ≤10s chunks (iOS-safe). Each tick calls `showRestProgress()` → a **live "⏱ Rest — m:ss left" notification with the next-exercise line** (tag `auxos-rest`). First banner alerts; later refreshes are `silent`. When rest ends → `showRestDone()` (vibrate + "GO"). All SW notifications check `hasVisibleClient()` first, so nothing shows while Auxos is open (the overlay covers it).
+6. Notifications — **the service worker is the single owner** (the page no longer fires its own `Notification`, which previously duplicated alerts):
+   - `scheduleRestTimerAlerts()` posts `TIMER_START` to `sw.js` with `endAt`, `goBody`, and `nextLabel`. The "GO" body leads with the **next exercise** (`getRestTimerContext` → `notifyBody = "Next up: <name>"`).
+   - `sw.js` re-arms in ≤10s chunks (iOS-safe). Each tick calls `showRestProgress()` → a **live "⏱ Rest — m:ss left" notification with the next-exercise line** (tag `auxos-rest`). First banner alerts; later refreshes are `silent`.
+   - When rest ends → `showRestDone()` (vibrate + "GO"), guarded by `restDoneFired` so it fires **exactly once** even if throttled SW timers burst on resume. `armRestTimer` bails when `!timerEndAt || restDoneFired`.
+   - All SW notifications check `hasVisibleClient()` first, so nothing shows while Auxos is open (the overlay covers it). `finishTimer()` deliberately does **not** cancel SW alerts (would race out the background notification); `closeTimer()` cancels as a backstop.
    - Page posts `TIMER_BG` on `visibilitychange→hidden` so the live banner appears immediately when backgrounded. `TIMER_CANCEL` and tap (`notificationclick`) clear the banner / focus the app.
 
 **Set row id format** (used everywhere): `set-{day}-{blockIndex}-{exerciseIndex}-{setIndex}` — see `parseSetSid()` / `buildSetSid()`.
@@ -224,3 +225,5 @@ Working reference for **where features live** and **how they behave**. Update th
 | 2026-06-02 | **Log action bar cleanup**: the fixed bottom bar is now a single **Complete Session** CTA plus a `⋯` overflow menu (Save progress, Repeat last, Skip, Clear-as-danger) in `js/pages/log.js` (`toggleLogActionsMenu`/`logMenuAction`). Repeat stays context-gated; menu closes on outside-click, day switch, and re-render. Mockup: canvases/log-actions-bar-cleanup-mockup.canvas.tsx |
 | 2026-06-02 | **`window.global` shim**: defined in `index.html` before any script so the top-level `global.X = X` exports in `log.js`/`progress.js`/`history.js`/`client.js` run instead of throwing `global is not defined`. |
 | 2026-06-02 | **Live rest notification**: backgrounding mid-rest now shows an ongoing "⏱ Rest — m:ss left · Next: …" notification that refreshes (~10s) and flips to a vibrating "GO" when done. SW checks `hasVisibleClient()` so it never duplicates the in-app overlay. Mockup: canvases/rest-timer-notification-mockup.canvas.tsx |
+| 2026-06-02 | **SW asset fallback fix**: failed non-navigation fetches no longer fall back to `index.html` (which served HTML as JS — `Unexpected token '<'` — and broke the whole app on any network blip). Shell fallback is navigation-only; assets return cache or a network error. |
+| 2026-06-02 | **Rest notification fires once + correct next exercise**: removed the page-side `Notification` (duplicated the SW alert); SW `showRestDone()` is now guarded by `restDoneFired`. "GO" copy leads with the next exercise (`Next up: <name>`) instead of the just-finished lift. |
