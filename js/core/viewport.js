@@ -59,14 +59,63 @@ function syncMobileViewport() {
   }
 }
 
+// Cached keyboard metrics so repeated focuses reuse a stable, accurate layout
+// instead of recomputing from a mid-animation viewport (which causes jumps).
+let lastKeyboardInset = 0;   // last measured keyboard height (px)
+let lastLogScrollHeight = 0; // last applied --log-scroll-height (px)
+let lastVvHeight = 0;        // last visualViewport height we reacted to (px)
+
+/**
+ * Set --log-scroll-height only when it changes meaningfully.
+ * Guards against layout thrash during scroll-induced viewport resizes
+ * (the "glitch while scrolling with the keyboard up").
+ */
+function setLogScrollHeight(px) {
+  if (Math.abs(px - lastLogScrollHeight) < 2) return;
+  lastLogScrollHeight = px;
+  document.documentElement.style.setProperty('--log-scroll-height', `${px}px`);
+}
+
 function updateKeyboardInset() {
   const vv = window.visualViewport;
   if (!vv) {
     document.documentElement.style.setProperty('--keyboard-inset', '0px');
     return;
   }
-  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-  document.documentElement.style.setProperty('--keyboard-inset', `${Math.round(inset)}px`);
+  const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+  if (inset > 0) lastKeyboardInset = inset; // remember for the next focus
+  document.documentElement.style.setProperty('--keyboard-inset', `${inset}px`);
+}
+
+/** Compute the scroll slice above the keyboard for a given keyboard inset. */
+function computeLogScrollHeight(keyboardInset) {
+  const scroller = document.querySelector('#page-log.active .log-page-scroll');
+  if (!scroller) return 0;
+  const scRect = scroller.getBoundingClientRect();
+  const actions = document.getElementById('logSessionActions');
+  const actionsH =
+    actions && !actions.classList.contains('is-hidden')
+      ? actions.getBoundingClientRect().height
+      : 0;
+  const available = Math.floor(window.innerHeight - keyboardInset - scRect.top - actionsH - 8);
+  return Math.max(160, available);
+}
+
+/**
+ * Pre-constrain the log scroller the instant a field is focused — BEFORE the
+ * browser paints — using the last measured keyboard height (or a typical
+ * estimate on the very first focus). This is what prevents the screen jump:
+ * without it, the `keyboard-open` CSS leaves the scroller at `height:auto`
+ * (full content height) until the async recompute runs ~60ms later.
+ */
+function preconstrainLogScroll() {
+  if (!isMobileLayout()) return;
+  const estInset = lastKeyboardInset > 0
+    ? lastKeyboardInset
+    : Math.round(window.innerHeight * 0.45); // typical mobile keyboard fraction
+  document.documentElement.style.setProperty('--keyboard-inset', `${estInset}px`);
+  const h = computeLogScrollHeight(estInset);
+  if (h) setLogScrollHeight(h);
 }
 
 /** Shrink log scroll area to the slice above the keyboard (layout viewport stays full height on iOS). */
@@ -75,20 +124,21 @@ function syncLogKeyboardLayout() {
   const keyboardOpen = document.documentElement.classList.contains('keyboard-open');
   if (!scroller || !keyboardOpen || !isMobileLayout()) {
     document.documentElement.style.removeProperty('--log-scroll-height');
+    lastLogScrollHeight = 0;
     return;
   }
   const vv = window.visualViewport;
   if (!vv) return;
   updateKeyboardInset();
+  const vvBottom = vv.offsetTop + vv.height;
   const scRect = scroller.getBoundingClientRect();
   const actions = document.getElementById('logSessionActions');
   const actionsH =
     actions && !actions.classList.contains('is-hidden')
       ? actions.getBoundingClientRect().height
       : 0;
-  const vvBottom = vv.offsetTop + vv.height;
   const available = Math.floor(vvBottom - scRect.top - actionsH - 8);
-  document.documentElement.style.setProperty('--log-scroll-height', `${Math.max(160, available)}px`);
+  setLogScrollHeight(Math.max(160, available));
 }
 
 let logScrollRaf = 0;
@@ -166,9 +216,13 @@ function bindKeyboardViewportFix() {
   const onFocusIn = (e) => {
     const t = e.target;
     if (!isFormField(t)) return;
+    const wasOpen = document.documentElement.classList.contains('keyboard-open');
     document.documentElement.classList.add('keyboard-open');
     document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
-    updateKeyboardInset();
+    // Synchronously constrain the log scroller before the browser paints so the
+    // keyboard-open layout never flashes the full-height (auto) state → no jump.
+    if (!wasOpen) preconstrainLogScroll();
+    else updateKeyboardInset();
     scheduleLogKeyboardLayout();
     requestAnimationFrame(() => scrollFieldIntoView(t));
   };
@@ -184,24 +238,35 @@ function bindKeyboardViewportFix() {
       document.documentElement.classList.remove('keyboard-open');
       document.documentElement.style.setProperty('--keyboard-inset', '0px');
       document.documentElement.style.removeProperty('--log-scroll-height');
+      lastLogScrollHeight = 0;
       syncMobileViewport();
     }, 150);
   };
   document.addEventListener('focusin', onFocusIn);
   document.addEventListener('focusout', onFocusOut);
-  window.visualViewport?.addEventListener('resize', () => {
-    if (!document.documentElement.classList.contains('keyboard-open')) return;
-    scheduleLogKeyboardLayout();
-  }, { passive: true });
 }
 
 function bindMobileViewport() {
   detectPwaEnv();
+  lastVvHeight = window.visualViewport?.height || 0;
   syncMobileViewport();
   bindKeyboardViewportFix();
   window.addEventListener('resize', syncMobileViewport, { passive: true });
   window.addEventListener('orientationchange', () => setTimeout(syncMobileViewport, 100), { passive: true });
-  window.visualViewport?.addEventListener('resize', syncMobileViewport, { passive: true });
+  // Single visualViewport resize handler: keeps keyboard + general viewport
+  // logic coordinated so they read/update lastVvHeight exactly once per event.
+  window.visualViewport?.addEventListener('resize', () => {
+    const vv = window.visualViewport;
+    const heightChanged = !vv || Math.abs(vv.height - lastVvHeight) >= 2;
+    if (vv) lastVvHeight = vv.height;
+    if (document.documentElement.classList.contains('keyboard-open')) {
+      // Scroll rubber-banding changes offsetTop, not height — ignore it to
+      // avoid the layout glitch while scrolling with the keyboard up.
+      if (!heightChanged) return;
+      scheduleLogKeyboardLayout();
+    }
+    syncMobileViewport();
+  }, { passive: true });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) syncMobileViewport();
   });
