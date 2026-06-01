@@ -50,6 +50,7 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+  --card-sheen: rgba(255,255,255,0.04);
   --chart-grid: rgba(255,255,255,0.06);
   --overlay-scrim: rgba(0,0,0,0.55);
 }
@@ -69,6 +70,7 @@
   --shadow-sm: 0 1px 2px rgba(15,23,42,0.06);
   --shadow-md: 0 4px 12px rgba(15,23,42,0.08);
   --shadow-lg: 0 8px 24px rgba(15,23,42,0.1);
+  --card-sheen: transparent;
   --chart-grid: rgba(15,23,42,0.08);
   --overlay-scrim: rgba(15,23,42,0.35);
 }
@@ -148,18 +150,21 @@ a{color:inherit;text-decoration:none}
 .page.active{display:block;width:100%;max-width:100%}
 
 /* ── CARDS ────────────────────────────────────────────────────── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px}
+/* Depth: hairline top highlight (inset) + soft shadow lifts cards off the bg. */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-sm),inset 0 1px 0 var(--card-sheen,transparent);transition:border-color var(--transition),box-shadow var(--transition),transform var(--transition)}
 .card-sm{padding:14px 16px}
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .card-title{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em}
-.card-title-lg{font-size:15px;font-weight:700;color:var(--text)}
+.card-title-lg{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.2px}
 
 /* ── KPI GRID ─────────────────────────────────────────────────── */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
-.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px}
+.kpi-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow-sm),inset 0 1px 0 var(--card-sheen,transparent);transition:border-color var(--transition),box-shadow var(--transition),transform var(--transition)}
+.kpi-card:hover{border-color:var(--border-hover);transform:translateY(-1px);box-shadow:var(--shadow-md),inset 0 1px 0 var(--card-sheen,transparent)}
 .kpi-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}
-.kpi-value{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);line-height:1}
+.kpi-value{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);line-height:1;letter-spacing:-0.5px}
 .kpi-sub{font-size:11px;color:var(--text-muted);margin-top:5px}
+.kpi-accent{border-top:2px solid var(--accent)}
 .kpi-accent .kpi-value{color:var(--accent)}
 
 /* ── GRID LAYOUTS ─────────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-const CACHE = 'auxos-shell-v18';
+const CACHE = 'auxos-shell-v19';
 let restTimerTimeout = null;
 let timerEndAt = 0;
 let timerGoPayload = null;   // { title, body } shown when rest ends
