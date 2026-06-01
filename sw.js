@@ -1,7 +1,11 @@
-const CACHE = 'auxos-shell-v14';
+const CACHE = 'auxos-shell-v16';
 let restTimerTimeout = null;
 let timerEndAt = 0;
-let timerNotifyPayload = null;
+let timerGoPayload = null;   // { title, body } shown when rest ends
+let timerNextLabel = '';     // "Next: …" line shown live during rest
+let restProgressShown = false; // first live banner alerts; later updates are silent
+
+const REST_TAG = 'auxos-rest';
 
 function clearRestTimerSchedule() {
   if (restTimerTimeout) {
@@ -9,55 +13,126 @@ function clearRestTimerSchedule() {
     restTimerTimeout = null;
   }
   timerEndAt = 0;
-  timerNotifyPayload = null;
+  timerGoPayload = null;
+  timerNextLabel = '';
+  restProgressShown = false;
 }
 
-function showRestTimerNotification() {
-  const payload = timerNotifyPayload;
-  if (!payload) return;
-  self.registration.showNotification(payload.title || 'Rest over — GO!', {
-    body: payload.body || 'Start your next set',
-    tag: 'auxos-rest',
-    renotify: true,
+/** True when an Auxos window is open and visible — the in-app overlay covers it. */
+async function hasVisibleClient() {
+  try {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    return clients.some((c) => c.visibilityState === 'visible' || c.focused);
+  } catch {
+    return false;
+  }
+}
+
+async function closeRestNotifications() {
+  try {
+    const ns = await self.registration.getNotifications({ tag: REST_TAG });
+    ns.forEach((n) => n.close());
+  } catch { /* ignore */ }
+}
+
+function formatRemaining(totalSec) {
+  const s = Math.max(0, totalSec);
+  if (s < 60) return `${s}s left`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, '0')} left`;
+}
+
+/** Live "resting" notification with remaining time + next exercise (backgrounded only). */
+async function showRestProgress() {
+  if (!timerEndAt) return;
+  if (await hasVisibleClient()) return; // app is open — overlay handles it
+  const remaining = Math.round((timerEndAt - Date.now()) / 1000);
+  if (remaining <= 0) return;
+  const firstShow = !restProgressShown;
+  restProgressShown = true;
+  self.registration.showNotification(`⏱ Rest — ${formatRemaining(remaining)}`, {
+    body: timerNextLabel || 'Next set coming up',
+    tag: REST_TAG,
+    renotify: false,
+    silent: !firstShow, // first banner drops down; later updates are quiet
   });
-  clearRestTimerSchedule();
 }
 
-/** iOS throttles long SW timers — re-arm in chunks until endAt. */
-function armRestTimerNotification() {
-  if (restTimerTimeout) clearTimeout(restTimerTimeout);
-  if (!timerEndAt || !timerNotifyPayload) return;
-  const delay = timerEndAt - Date.now();
-  if (delay <= 0) {
-    showRestTimerNotification();
+async function showRestDone() {
+  const payload = timerGoPayload || { title: 'Rest over — GO!', body: 'Start your next set' };
+  clearRestTimerSchedule();
+  if (await hasVisibleClient()) {
+    // App is visible — let the in-app overlay handle it and clear any live banner.
+    closeRestNotifications();
     return;
   }
-  const chunkMs = Math.min(delay, 15000);
+  self.registration.showNotification(payload.title || 'Rest over — GO!', {
+    body: payload.body || 'Start your next set',
+    tag: REST_TAG,
+    renotify: true,
+    vibrate: [200, 100, 200],
+  });
+}
+
+/**
+ * Re-arm in short chunks: iOS throttles long SW timers, and each tick also
+ * refreshes the live rest notification (coarse countdown).
+ */
+function armRestTimer() {
+  if (restTimerTimeout) clearTimeout(restTimerTimeout);
+  if (!timerEndAt || !timerGoPayload) return;
+  const delay = timerEndAt - Date.now();
+  if (delay <= 0) {
+    showRestDone();
+    return;
+  }
+  showRestProgress();
+  const chunkMs = Math.min(delay, 10000);
   restTimerTimeout = setTimeout(() => {
     restTimerTimeout = null;
-    if (Date.now() >= timerEndAt) showRestTimerNotification();
-    else armRestTimerNotification();
+    if (Date.now() >= timerEndAt) showRestDone();
+    else armRestTimer();
   }, chunkMs);
 }
 
-/** Rest timer push — body set from js/features/timer.js scheduleRestTimerAlerts(). */
+/** Rest timer push — payload set from js/features/timer.js scheduleRestTimerAlerts(). */
 self.addEventListener('message', (e) => {
   const data = e.data;
   if (!data || typeof data !== 'object') return;
   if (data.type === 'TIMER_CANCEL') {
     clearRestTimerSchedule();
+    closeRestNotifications();
+    return;
+  }
+  if (data.type === 'TIMER_BG') {
+    // Page went to the background mid-rest — show the live banner immediately.
+    if (timerEndAt && Date.now() < timerEndAt) showRestProgress();
     return;
   }
   if (data.type === 'TIMER_START') {
     clearRestTimerSchedule();
     timerEndAt = data.endAt || 0;
-    timerNotifyPayload = {
-      title: data.title || 'Rest over — GO!',
-      body: data.body || 'Start your next set',
+    timerGoPayload = {
+      title: data.goTitle || data.title || 'Rest over — GO!',
+      body: data.goBody || data.body || 'Start your next set',
     };
+    timerNextLabel = data.nextLabel || '';
     if (timerEndAt - Date.now() <= 0) return;
-    armRestTimerNotification();
+    armRestTimer();
   }
+});
+
+/** Tapping any rest notification focuses (or opens) the app. */
+self.addEventListener('notificationclick', (e) => {
+  if (e.notification?.tag !== REST_TAG) return;
+  e.notification.close();
+  e.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = clients.find((c) => 'focus' in c);
+    if (existing) return existing.focus();
+    return self.clients.openWindow('/');
+  })());
 });
 
 const SHELL = ['/', '/index.html', '/config.json', '/manifest.json', '/icons/icon.svg'];
@@ -80,6 +155,8 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   if (url.pathname.startsWith('/api') || url.hostname.includes('amazonaws.com')) return;
 
+  const isNavigation = e.request.mode === 'navigate';
+
   e.respondWith(
     fetch(e.request)
       .then((res) => {
@@ -89,6 +166,18 @@ self.addEventListener('fetch', (e) => {
         }
         return res;
       })
-      .catch(() => caches.match(e.request).then((r) => r || caches.match('/index.html'))),
+      .catch(async () => {
+        const cached = await caches.match(e.request);
+        if (cached) return cached;
+        // Only fall back to the app shell for navigations. NEVER return index.html
+        // for a failed script/style/asset request — doing so makes the browser parse
+        // HTML as JS ("Unexpected token '<'") and breaks the entire app on any
+        // transient network blip.
+        if (isNavigation) {
+          const shell = await caches.match('/index.html');
+          if (shell) return shell;
+        }
+        return Response.error();
+      }),
   );
 });

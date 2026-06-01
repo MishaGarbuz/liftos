@@ -78,15 +78,33 @@ function scheduleRestTimerAlerts() {
 
   if ('serviceWorker' in navigator) {
     const body = getRestNotifyBody();
+    const nextLabel = getRestNextLabel();
     navigator.serviceWorker.ready.then((reg) => {
       reg.active?.postMessage({
         type: 'TIMER_START',
         endAt: timerState.endAt,
-        title: 'Rest over — GO!',
-        body,
+        goTitle: 'Rest over — GO!',
+        goBody: body,
+        nextLabel,
       });
     }).catch(() => {});
   }
+}
+
+/** Next-exercise line shown live in the background rest notification. */
+function getRestNextLabel() {
+  if (timerState.nextLabel) return timerState.nextLabel;
+  return timerState.exercise ? `Next set: ${timerState.exercise}` : 'Next set coming up';
+}
+
+/** Ask the SW to surface the live rest banner now (called when the app is hidden). */
+function notifyServiceWorkerBackgrounded() {
+  if (!('serviceWorker' in navigator)) return;
+  if (timerState.mode !== 'rest' || !timerState.active) return;
+  if (state.prefs?.timerNotify === false) return;
+  navigator.serviceWorker.ready.then((reg) => {
+    reg.active?.postMessage({ type: 'TIMER_BG' });
+  }).catch(() => {});
 }
 
 function syncActiveTimer() {
@@ -244,6 +262,7 @@ function skipTimer() {
 function bindRestTimerSync() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') syncActiveTimer();
+    else notifyServiceWorkerBackgrounded();
   });
   window.addEventListener('pageshow', () => syncActiveTimer());
 }
