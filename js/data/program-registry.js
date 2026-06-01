@@ -42,7 +42,6 @@
     global.PLAN_PROGRESSIONS = bundle.planProgressions || {};
     global.LIFT_DEFS = bundle.liftDefs || [];
     global.LIFT_KEYS = bundle.liftKeys || [];
-    global.LIFT_TARGETS = bundle.liftTargets || {};
     global.DELOAD_WEEKS = bundle.deloadWeeks || [6, 12];
     global.ACTIVE_PROGRAM_ID = bundle.id;
     global.ACTIVE_PROGRAM_META = bundle;
@@ -103,8 +102,8 @@
       scheduleDays: raw.scheduleDays || base.scheduleDays,
       gymDays: raw.gymDays || base.gymDays,
       deloadWeeks: raw.deloadWeeks || base.deloadWeeks,
+      liftDefs: raw.liftDefs || base.liftDefs,
       liftKeys: raw.liftKeys || base.liftKeys,
-      liftTargets: raw.liftTargets || base.liftTargets,
       planProgressions: raw.planProgressions ?? base.planProgressions,
       pageCopy: raw.pageCopy || base.pageCopy,
       displayName: raw.displayName || base.displayName,
@@ -378,12 +377,6 @@
     return sets.find((s) => Number(s.setNumber || 0) === Number(setNumber || 0)) || null;
   }
 
-  function getCoachTargetSummary(week, slotId, setNumber) {
-    const slot = getCoachSlotSuggestion(week, slotId);
-    const set = getCoachSetSuggestion(week, slotId, setNumber);
-    return { slot, set };
-  }
-
   function resolveCoachWeightTarget(ex, week, dayKey, exerciseName, slotId, setNumber) {
     const set = getCoachSetSuggestion(week, slotId, setNumber);
     if (set && typeof set.weightKg === "number") return set.weightKg;
@@ -426,12 +419,6 @@
       })),
       days: JSON.parse(JSON.stringify(b.days || {})),
     };
-  }
-
-  function isLogSlotCompleted(week, day) {
-    return (typeof state !== "undefined" ? state.sessions : []).some(
-      (s) => s.completed && s.week === week && s.day === day,
-    );
   }
 
   /** Calendar week from programStartDate (1–12), or null if not scheduled. */
@@ -623,7 +610,6 @@
   global.getCoachSuggestionDoc = getCoachSuggestionDoc;
   global.getCoachSlotSuggestion = getCoachSlotSuggestion;
   global.getCoachSetSuggestion = getCoachSetSuggestion;
-  global.getCoachTargetSummary = getCoachTargetSummary;
   global.resolveCoachWeightTarget = resolveCoachWeightTarget;
   global.resolveCoachRepsTarget = resolveCoachRepsTarget;
   global.resolveCoachRpeTarget = resolveCoachRpeTarget;

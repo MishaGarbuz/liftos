@@ -1037,6 +1037,14 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
       ? getEffectiveExerciseRest(ex, block, ei)
       : ex.rest);
 
+  // A rest of 0 means a superset lead exercise (round rest lives on the trailing
+  // lift) — those stay non-editable. Everything else can be edited and is read
+  // back from the per-exercise saved value so edits persist across reloads.
+  const restIsEditable = (effectiveRest || 0) > 0;
+  const displayRest = restIsEditable && typeof getExerciseRest === 'function'
+    ? getExerciseRest(displayName, effectiveRest)
+    : effectiveRest;
+
   card.dataset.slotId = slotId;
   card.dataset.plannedExerciseName = ex.name;
   card.dataset.plannedExerciseId = plannedId;
@@ -1045,8 +1053,8 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   card.dataset.loadScheme = typeof getExerciseLoadScheme === 'function'
     ? getExerciseLoadScheme(displayName).id
     : 'other';
-  card.dataset.rest = String(effectiveRest);
-  card._plannedExTemplate = { ...ex, rest: effectiveRest };
+  card.dataset.rest = String(displayRest);
+  card._plannedExTemplate = { ...ex, rest: displayRest };
 
   const lastSets = getLastSetsForExercise(displayName, state.currentDay);
   const lastHint = lastSets
@@ -1070,7 +1078,7 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
   const lastEi = (block?.exercises?.length || 1) - 1;
   const isRestAnchor = inSuper && ei === lastEi && isSupersetStyleBlock(block);
   const supersetRestHint = isRestAnchor
-    ? `<div class="superset-rest-hint">Rest <strong>${effectiveRest}s</strong> starts after you complete this exercise</div>`
+    ? `<div class="superset-rest-hint">Rest <strong>${displayRest}s</strong> starts after you complete this exercise</div>`
     : (inSuper && isSupersetStyleBlock(block) && ei < lastEi
       ? '<div class="superset-rest-hint">No rest — go straight to the next exercise in this superset</div>'
       : '');
@@ -1101,7 +1109,13 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
           <span class="badge badge-muted">${ex.sets}×${formatRepsTargetBadge(ex.repsTarget)}</span>
           <span class="badge badge-muted">Tempo ${ex.tempo}</span>
           <span class="badge badge-accent">RPE ${ex.rpe}</span>
-          <span class="badge badge-muted">Rest ${effectiveRest}s</span>
+          ${restIsEditable
+    ? `<span class="badge badge-muted rest-edit-badge" title="Tap to edit rest — saved for this exercise">Rest
+            <input type="number" class="rest-edit-input" value="${displayRest}" min="0" step="5" inputmode="numeric"
+              data-exercise="${escapeCoachBannerText(displayName)}"
+              onclick="event.stopPropagation()"
+              onchange="updateExerciseRest(this)">s</span>`
+    : `<span class="badge badge-muted">Rest ${effectiveRest}s</span>`}
         </div>
         <div class="exercise-notes">${ex.notes}</div>
         ${supersetRestHint}
@@ -1907,6 +1921,33 @@ function undoSkipSession() {
   renderLogPage();
 }
 global.undoSkipSession = undoSkipSession;
+
+/**
+ * Persist an edited rest duration for an exercise.
+ * Saved per-exercise via saveExerciseRest (localStorage `liftos_rest_v1`),
+ * which the rest timer already reads through getExerciseRest — so the new
+ * value drives the next countdown and survives an app reload.
+ * @param {HTMLInputElement} input - the inline rest input element
+ */
+function updateExerciseRest(input) {
+  if (!input) return;
+  const exName = input.dataset.exercise;
+  const seconds = parseInt(input.value, 10);
+  if (!exName || !Number.isFinite(seconds) || seconds < 0) {
+    // Revert to the card's current value on invalid input.
+    const card = input.closest('.exercise-card');
+    if (card?.dataset.rest != null) input.value = card.dataset.rest;
+    return;
+  }
+  if (typeof saveExerciseRest === 'function') saveExerciseRest(exName, seconds);
+  const card = input.closest('.exercise-card');
+  if (card) {
+    card.dataset.rest = String(seconds);
+    if (card._plannedExTemplate) card._plannedExTemplate.rest = seconds;
+  }
+  showSaveToast(`Rest for ${exName} set to ${seconds}s`);
+}
+global.updateExerciseRest = updateExerciseRest;
 
 function showSaveToast(msg) {
   const t = document.getElementById('saveToast');

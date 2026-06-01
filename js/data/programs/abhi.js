@@ -323,9 +323,8 @@ const ABHI_PROGRAM_BUNDLE = {
     { key: "Lat Pulldown",      match: ["lat pulldown"] },
     { key: "DB RDL",            match: ["dumbbell romanian deadlift", "db romanian deadlift"] },
   ],
-  // Legacy stubs so shared code doesn't crash.
+  // Fallback key list consumed by progress.js when LIFT_DEFS is unavailable.
   get liftKeys() { return this.liftDefs.map(d => d.key); },
-  liftTargets: {},
   setsForWeek(tier, week) {
     const deload = [4, 8].includes(week);
     if (deload) return 2;

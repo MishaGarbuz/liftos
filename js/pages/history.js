@@ -50,13 +50,6 @@ function filterHistory(f, btn) {
   renderHistory(f);
 }
 
-function reloadSession(idx) {
-  const s = state.sessions[idx];
-  state.currentWeek = s.week;
-  state.currentDay = s.day;
-  showPage('log',null);
-}
-
 /* ─── SESSION DETAIL / EDIT MODAL ─────────────────────────────────────── */
 let modalEditIdx = null;
 let modalEditSnapshot = null;

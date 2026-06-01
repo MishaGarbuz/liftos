@@ -256,9 +256,8 @@ const MICHAEL_LIFT_DEFS = [
   { key: "Hip Thrust",    match: ["hip thrust"] },
 ];
 
-// Legacy — kept so existing code referencing LIFT_KEYS / LIFT_TARGETS doesn't crash.
+// Fallback key list consumed by progress.js when LIFT_DEFS is unavailable.
 const MICHAEL_LIFT_KEYS = MICHAEL_LIFT_DEFS.map(d => d.key);
-const MICHAEL_LIFT_TARGETS = {};
 
 const MICHAEL_SCHEDULE_DAYS = [
   { day:"Mon", label:"Monday", type:"gym", typeClass:"gym", session:"Upper A", notes:"Push · Chest / Shoulders / Triceps\n60–70 min session" },
@@ -316,7 +315,6 @@ const MICHAEL_PROGRAM_BUNDLE = {
   scheduleDays: MICHAEL_SCHEDULE_DAYS,
   liftDefs: MICHAEL_LIFT_DEFS,
   liftKeys: MICHAEL_LIFT_KEYS,
-  liftTargets: MICHAEL_LIFT_TARGETS,
   setsForWeek(_tier, week) {
     return [6, 12].includes(week) ? null : null;
   },
