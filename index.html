@@ -194,6 +194,23 @@ window.global = window.global || window;
       <div class="section-heading">Dashboard</div>
       <div class="section-sub">Performance overview · Week <span id="dashWeekNum">1</span> of 12</div>
 
+      <div class="today-hero" id="todayHero">
+        <div class="today-hero-body">
+          <div class="today-hero-top">
+            <div class="today-hero-eyebrow" id="todayHeroEyebrow">Today</div>
+            <span class="badge badge-blue today-hero-week" id="todayHeroWeek">Week 1 of 12</span>
+          </div>
+          <div class="today-hero-title" id="todayHeroTitle">Loading…</div>
+          <div class="today-hero-summary" id="todayHeroSummary"></div>
+          <div class="week-dots" id="weekDots"></div>
+          <div class="today-hero-actions">
+            <button class="btn btn-primary" id="startTodayBtn" onclick="startTodaysWorkout()">Start today's workout</button>
+            <span class="today-hero-meta" id="todayHeroMeta"></span>
+          </div>
+          <div id="weekCompleteBanner" class="week-complete-banner hidden"></div>
+        </div>
+      </div>
+
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">Sessions Logged</div>
@@ -217,25 +234,12 @@ window.global = window.global || window;
         </div>
       </div>
 
-      <div class="grid-2" style="margin-bottom:16px">
-        <div class="today-session-card">
-          <div class="flex items-center justify-between mb-16">
-            <div>
-              <div class="card-title-lg">Today's Session</div>
-              <div class="text-muted text-sm mt-4" id="todaySessionLabel">Loading...</div>
-            </div>
-            <button class="btn btn-primary btn-sm" id="startTodayBtn" onclick="startTodaysWorkout()">Start today's workout</button>
-          </div>
-          <div class="week-dots" id="weekDots"></div>
-          <div id="weekCompleteBanner" class="week-complete-banner hidden"></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <span class="card-title">Weekly Volume (Sets)</span>
+          <span class="badge badge-accent" id="dashPhase">Phase 1</span>
         </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Weekly Volume (Sets)</span>
-            <span class="badge badge-accent" id="dashPhase">Phase 1</span>
-          </div>
-          <div class="chart-wrap" style="height:160px"><canvas id="dashVolumeChart"></canvas></div>
-        </div>
+        <div class="chart-wrap" style="height:160px"><canvas id="dashVolumeChart"></canvas></div>
       </div>
 
       <div class="card">

@@ -37,20 +37,53 @@ function renderDashboard() {
   const kpiConsistencySub=document.getElementById('kpiConsistencySub');
   if(kpiConsistencySub) kpiConsistencySub.textContent='gym days this week';
 
-  // Today
+  // Today hero
   const dayMap={0:'Sun',1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat'};
+  const weekdayLong=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
   const todayKey=dayMap[new Date().getDay()];
   const todayProgram=PROGRAM[todayKey];
-  document.getElementById('todaySessionLabel').textContent=todayProgram?todayProgram.label+' — '+todayProgram.focus:'Rest day — recover well.';
+  const hero=document.getElementById('todayHero');
+  const heroEyebrow=document.getElementById('todayHeroEyebrow');
+  const heroTitle=document.getElementById('todayHeroTitle');
+  const heroSummary=document.getElementById('todayHeroSummary');
+  const heroMeta=document.getElementById('todayHeroMeta');
+  const heroWeek=document.getElementById('todayHeroWeek');
+  if(heroWeek) heroWeek.textContent=`Week ${state.currentWeek} of 12`;
+  if(heroEyebrow) heroEyebrow.textContent=`Today · ${weekdayLong}`;
   const startBtn = document.getElementById('startTodayBtn');
-  if (startBtn) {
-    if (todayProgram) {
-      startBtn.textContent = "Start today's workout";
-      startBtn.disabled = false;
-    } else {
-      startBtn.textContent = 'Rest day';
-      startBtn.disabled = true;
+  if (todayProgram) {
+    const focusHead=(todayProgram.focus||'').split('·')[0].trim();
+    if(heroTitle) heroTitle.textContent=focusHead||todayProgram.label||"Today's session";
+    const names=[];
+    (todayProgram.blocks||[]).forEach(b=>(b.exercises||[]).forEach(ex=>{ if(ex&&ex.name) names.push(ex.name); }));
+    const uniqueNames=[...new Set(names)];
+    if(heroSummary){
+      if(uniqueNames.length){
+        const preview=uniqueNames.slice(0,3).join(' · ');
+        const extra=uniqueNames.length>3?` · +${uniqueNames.length-3} more`:'';
+        heroSummary.textContent=`${todayProgram.label} — ${preview}${extra}`;
+      } else {
+        heroSummary.textContent=todayProgram.focus||todayProgram.label||'';
+      }
     }
+    if(startBtn){ startBtn.textContent="Start today's workout"; startBtn.disabled=false; }
+    if(hero) hero.classList.remove('today-hero--rest');
+  } else {
+    if(heroTitle) heroTitle.textContent='Rest day';
+    if(heroSummary) heroSummary.textContent='No session scheduled — recover well and come back strong.';
+    if(startBtn){ startBtn.textContent='Rest day'; startBtn.disabled=true; }
+    if(hero) hero.classList.add('today-hero--rest');
+  }
+  if(heroMeta){
+    let metaText='';
+    if(todayProgram){
+      const doneThisWeek=completed.some(s=>s.day===todayKey&&s.week===state.currentWeek);
+      const prior=completed.filter(s=>s.day===todayKey).sort((a,b)=>(b.week||0)-(a.week||0));
+      if(doneThisWeek) metaText='Logged this week ✓';
+      else if(prior.length) metaText=`Last done in week ${prior[0].week}`;
+      else metaText='First time through this session';
+    }
+    heroMeta.textContent=metaText;
   }
 
   // Week dots
@@ -68,8 +101,8 @@ function renderDashboard() {
     dots.appendChild(dot);
   });
   renderWeekCompleteBanner(document.getElementById('weekCompleteBanner'), weekProgress);
-  const todayCard=document.querySelector('.today-session-card');
-  if(todayCard) todayCard.classList.toggle('today-session-card--week-complete', weekProgress.isComplete);
+  const todayCard=document.querySelector('.today-hero');
+  if(todayCard) todayCard.classList.toggle('today-hero--week-complete', weekProgress.isComplete);
 
   // Phase badge
   const phaseLabel = typeof getActiveProgramBundle === 'function'
