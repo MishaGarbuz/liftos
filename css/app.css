@@ -51,6 +51,7 @@
   --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
   --card-sheen: rgba(255,255,255,0.04);
+  --danger: #f87171;
   --chart-grid: rgba(255,255,255,0.06);
   --overlay-scrim: rgba(0,0,0,0.55);
 }
@@ -71,6 +72,7 @@
   --shadow-md: 0 4px 12px rgba(15,23,42,0.08);
   --shadow-lg: 0 8px 24px rgba(15,23,42,0.1);
   --card-sheen: transparent;
+  --danger: #dc2626;
   --chart-grid: rgba(15,23,42,0.08);
   --overlay-scrim: rgba(15,23,42,0.35);
 }
@@ -164,6 +166,11 @@ a{color:inherit;text-decoration:none}
 .kpi-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}
 .kpi-value{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);line-height:1;letter-spacing:-0.5px}
 .kpi-sub{font-size:11px;color:var(--text-muted);margin-top:5px}
+.kpi-delta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;margin-top:6px;line-height:1}
+.kpi-delta:empty{display:none}
+.kpi-delta--up{color:var(--success)}
+.kpi-delta--down{color:var(--danger)}
+.kpi-delta--flat{color:var(--text-faint)}
 .kpi-accent{border-top:2px solid var(--accent)}
 .kpi-accent .kpi-value{color:var(--accent)}
 

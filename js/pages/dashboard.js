@@ -2,6 +2,21 @@
 /* ═══════════════════════════════════════════════════════════════
    DASHBOARD
 ═══════════════════════════════════════════════════════════════ */
+/** Render a KPI trend delta (▲/▼/flat). Pass null to hide. */
+function setKpiDelta(elId, delta, opts) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  opts = opts || {};
+  el.classList.remove('kpi-delta--up', 'kpi-delta--down', 'kpi-delta--flat');
+  if (delta == null || Number.isNaN(delta)) { el.textContent = ''; el.classList.add('kpi-delta--flat'); return; }
+  const unit = opts.unit || '';
+  const suffix = opts.suffix ? ' ' + opts.suffix : '';
+  const abs = Math.abs(Math.round(delta * 10) / 10);
+  if (delta > 0) { el.textContent = `▲ ${abs}${unit}${suffix}`; el.classList.add('kpi-delta--up'); }
+  else if (delta < 0) { el.textContent = `▼ ${abs}${unit}${suffix}`; el.classList.add('kpi-delta--down'); }
+  else { el.textContent = opts.flatText || 'no change'; el.classList.add('kpi-delta--flat'); }
+}
+
 function renderDashboard() {
   if (typeof updateUserChrome === 'function' && typeof getActiveProgramBundle === 'function') {
     updateUserChrome(getActiveProgramBundle());
@@ -36,6 +51,32 @@ function renderDashboard() {
   document.getElementById('kpiConsistency').textContent=weekPct+'%';
   const kpiConsistencySub=document.getElementById('kpiConsistencySub');
   if(kpiConsistencySub) kpiConsistencySub.textContent='gym days this week';
+
+  // KPI trend deltas (week-over-week where comparable).
+  const prevWeek=state.currentWeek-1;
+  const hasPrev=prevWeek>=1;
+  const lastWeekSessions=completed.filter(s=>s.week===prevWeek);
+  setKpiDelta('kpiSessionsDelta', hasPrev?(weekProgress.completedCount-lastWeekSessions.length):null, {suffix:'vs last week'});
+  const lastWeekSets=lastWeekSessions.reduce((a,s)=>a+(s.sets?.length||0),0);
+  setKpiDelta('kpiSetsDelta', hasPrev?(weekSets-lastWeekSets):null, {suffix:'vs last week'});
+  let lastWeekPct=null;
+  if(hasPrev){ const lp=getWeekGymProgress(prevWeek); lastWeekPct=Math.round((lp.completedCount/lp.total)*100); }
+  setKpiDelta('kpiConsistencyDelta', hasPrev?(weekPct-lastWeekPct):null, {unit:'%', suffix:'vs last week'});
+  // Top set: improvement for the best lift from its first to most recent logged week.
+  let topDelta=null, topFromWeek=null;
+  if(bestWeight>0 && bestLift){
+    const lc=bestLift.toLowerCase();
+    const perWeek={};
+    completed.forEach(s=>(s.sets||[]).forEach(set=>{
+      if((set.exercise||'').toLowerCase()===lc){
+        const w=parseFloat(set.weight)||0; const wk=s.week||0;
+        if(w>0 && (perWeek[wk]==null || w>perWeek[wk])) perWeek[wk]=w;
+      }
+    }));
+    const weeks=Object.keys(perWeek).map(Number).filter(n=>n>0).sort((a,b)=>a-b);
+    if(weeks.length>=2){ topFromWeek=weeks[0]; topDelta=perWeek[weeks[weeks.length-1]]-perWeek[weeks[0]]; }
+  }
+  setKpiDelta('kpiE1rmDelta', topDelta!=null?Math.round(toDisplayUnit(topDelta)*10)/10:null, {unit:weightUnitLabel(), suffix: topFromWeek?`since wk ${topFromWeek}`:''});
 
   // Today hero
   const dayMap={0:'Sun',1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat'};
