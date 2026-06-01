@@ -1089,6 +1089,8 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
     : effectiveRest;
 
   card.dataset.slotId = slotId;
+  card.dataset.bi = String(bi);
+  card.dataset.ei = String(ei);
   card.dataset.plannedExerciseName = ex.name;
   card.dataset.plannedExerciseId = plannedId;
   card.dataset.exerciseName = displayName;
@@ -1180,11 +1182,11 @@ function buildExerciseCard(ex, bi, ei, inSuper) {
       </table>
     </div>
     <div class="set-row-actions">
-      <button type="button" class="set-row-btn remove-set-btn" onclick="removeSet(this,'${JSON.stringify(ex).replace(/'/g,"\\'")}',${bi},${ei})" title="Remove last set">
+      <button type="button" class="set-row-btn remove-set-btn" onclick="removeSet(this)" title="Remove last set">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Remove set
       </button>
-      <button type="button" class="set-row-btn add-set-btn" onclick="addSet(this,'${JSON.stringify(ex).replace(/'/g,"\\'")}',${bi},${ei})" title="Add a set">
+      <button type="button" class="set-row-btn add-set-btn" onclick="addSet(this)" title="Add a set">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add set
       </button>
@@ -1218,7 +1220,7 @@ function toggleWarmupItem(cb, itemId) {
   else item.classList.remove('done');
 }
 
-function removeSet(btn, exJson, bi, ei) {
+function removeSet(btn) {
   try {
     const card = btn.closest('.exercise-card');
     const tbody = getExerciseTbody(btn);
@@ -1226,25 +1228,24 @@ function removeSet(btn, exJson, bi, ei) {
     const lastRow = tbody.rows[tbody.rows.length - 1];
     const sid = lastRow.id;
     lastRow.remove();
-    const session = getInProgressSession();
-    if (session && sid) {
-      session.sets = session.sets.filter(s => s.sid !== sid);
-      persistLocalState();
-    }
+    // Drops the set from local state and deletes it server-side if it was synced.
+    if (sid && typeof removeSetFromState === 'function') removeSetFromState(sid);
     renumberSetRows(tbody);
     updateSetRowActions(card);
   } catch (e) { console.error(e); }
 }
 
-function addSet(btn, exJson, bi, ei) {
+function addSet(btn) {
   try {
-    const ex = JSON.parse(exJson);
     const card = btn.closest('.exercise-card');
+    const cardEl = card;
+    const ex = card?._plannedExTemplate;
     const tbody = getExerciseTbody(btn);
-    if (!tbody) return;
+    if (!ex || !tbody) return;
+    const bi = parseInt(card.dataset.bi, 10) || 0;
+    const ei = parseInt(card.dataset.ei, 10) || 0;
     const setNum = tbody.rows.length + 1;
     const sid = `set-${state.currentDay}-${bi}-${ei}-${setNum-1}`;
-    const cardEl = btn.closest('.exercise-card');
     const ctx = getCardExerciseContext(cardEl);
     const slotId = cardEl?.dataset?.slotId;
     const targetW = typeof resolveCoachWeightTarget === 'function'
