@@ -774,15 +774,15 @@ function applyInProgressSets(session) {
 }
 
 function updateLogRepeatUi() {
-  const repeatBtn = document.getElementById('repeatLastBtn');
+  const repeatItem = document.getElementById('logMenuRepeat');
   const hint = document.getElementById('logRepeatHint');
   const last = getLastCompletedSessionForDay(state.currentDay);
   const completed = getCompletedSessionForSlot(state.currentWeek, state.currentDay);
-  if (repeatBtn) {
+  if (repeatItem) {
     const show = last && !completed;
-    repeatBtn.style.display = show ? 'inline-flex' : 'none';
+    repeatItem.style.display = show ? 'flex' : 'none';
     if (show) {
-      repeatBtn.title = `Copy sets from Week ${last.week} (${last.date})`;
+      repeatItem.title = `Copy sets from Week ${last.week} (${last.date})`;
     }
   }
   if (hint) {
@@ -793,6 +793,49 @@ function updateLogRepeatUi() {
       hint.classList.add('hidden');
       hint.textContent = '';
     }
+  }
+}
+
+// ── Log action bar overflow menu ──────────────────────────────────────────
+// The fixed bottom bar shows a single primary CTA (Complete Session) plus a
+// "⋯" button that opens this menu for the secondary/occasional actions.
+function setLogActionsMenuOpen(open) {
+  const menu = document.getElementById('logActionsMenu');
+  const btn = document.getElementById('logMoreBtn');
+  if (!menu || !btn) return;
+  menu.classList.toggle('hidden', !open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) {
+    // Close when tapping/clicking anywhere outside the menu or its trigger.
+    requestAnimationFrame(() => document.addEventListener('click', onLogActionsOutsideClick, true));
+  } else {
+    document.removeEventListener('click', onLogActionsOutsideClick, true);
+  }
+}
+
+function onLogActionsOutsideClick(e) {
+  const wrap = document.querySelector('.log-actions-more');
+  if (wrap && !wrap.contains(e.target)) closeLogActionsMenu();
+}
+
+function closeLogActionsMenu() {
+  setLogActionsMenuOpen(false);
+}
+
+function toggleLogActionsMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('logActionsMenu');
+  const isOpen = menu && !menu.classList.contains('hidden');
+  setLogActionsMenuOpen(!isOpen);
+}
+
+function logMenuAction(action) {
+  closeLogActionsMenu();
+  switch (action) {
+    case 'save': return saveSessionProgress();
+    case 'repeat': return repeatLastWorkout();
+    case 'skip': return skipSession();
+    case 'clear': return clearSession();
   }
 }
 
@@ -869,6 +912,7 @@ function hideLogCompletedBanner() {
 }
 
 function renderLogPage() {
+  closeLogActionsMenu();
   if (typeof updateUserChrome === 'function' && typeof getActiveProgramBundle === 'function') {
     updateUserChrome(getActiveProgramBundle());
   }
@@ -922,8 +966,7 @@ function renderLogPage() {
     if (actions) actions.classList.add('is-hidden');
     const hint = document.getElementById('logRepeatHint');
     if (hint) { hint.classList.add('hidden'); hint.textContent = ''; }
-    const repeatBtn = document.getElementById('repeatLastBtn');
-    if (repeatBtn) repeatBtn.style.display = 'none';
+    closeLogActionsMenu();
     wc.innerHTML = '<p class="log-completed-hint">This session is finished. Use the button above to review your logged sets, or switch to another day to log a new workout.</p>';
     return;
   }
@@ -1948,6 +1991,9 @@ function updateExerciseRest(input) {
   showSaveToast(`Rest for ${exName} set to ${seconds}s`);
 }
 global.updateExerciseRest = updateExerciseRest;
+global.toggleLogActionsMenu = toggleLogActionsMenu;
+global.closeLogActionsMenu = closeLogActionsMenu;
+global.logMenuAction = logMenuAction;
 
 function showSaveToast(msg) {
   const t = document.getElementById('saveToast');

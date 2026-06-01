@@ -285,23 +285,33 @@
       </div>
 
       <div id="logSessionActions" class="log-session-actions">
-        <button type="button" class="btn btn-ghost" id="repeatLastBtn" style="display:none" onclick="repeatLastWorkout()" title="Copy sets from your last session on this day">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          Repeat last
-        </button>
         <button class="btn btn-primary" onclick="completeSession()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           Complete Session
         </button>
-        <button class="btn btn-ghost" onclick="saveSessionProgress()" title="Save progress without completing">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Save
-        </button>
-        <button class="btn btn-ghost" onclick="clearSession()">Clear</button>
-        <button type="button" class="btn btn-ghost btn-skip-session" onclick="skipSession()" title="Mark this session as skipped — AI Coach will hold targets, not increase them">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          Skip workout
-        </button>
+        <div class="log-actions-more">
+          <button type="button" class="btn btn-ghost log-actions-more-btn" id="logMoreBtn" aria-haspopup="true" aria-expanded="false" title="More actions" onclick="toggleLogActionsMenu(event)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+          </button>
+          <div class="log-actions-menu hidden" id="logActionsMenu" role="menu" aria-labelledby="logMoreBtn">
+            <button type="button" class="log-actions-menu-item" role="menuitem" onclick="logMenuAction('save')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save progress
+            </button>
+            <button type="button" class="log-actions-menu-item" id="logMenuRepeat" role="menuitem" onclick="logMenuAction('repeat')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              Repeat last workout
+            </button>
+            <button type="button" class="log-actions-menu-item" role="menuitem" onclick="logMenuAction('skip')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              Skip this workout
+            </button>
+            <button type="button" class="log-actions-menu-item is-danger" role="menuitem" onclick="logMenuAction('clear')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Clear session
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
