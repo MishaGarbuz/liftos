@@ -1837,6 +1837,16 @@ async function skipSession() {
     return;
   }
 
+  // Reuse an existing session id for this slot if one exists (so we overwrite
+  // it in the backend rather than orphan it); otherwise mint a fresh id.
+  // Using the same id locally and in DynamoDB is what lets the skip survive
+  // a reload — hydrateFromApi will return this same skipped session.
+  const existing = state.sessions.find(
+    (s) => s.week === week && s.day === day && !s.completed,
+  );
+  const sid = existing?.sessionId
+    || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `skip-${Date.now()}`);
+
   // Remove any in-progress session for this slot from local state and mark skipped.
   state.sessions = state.sessions.filter(
     (s) => !(s.week === week && s.day === day && !s.completed),
@@ -1844,7 +1854,7 @@ async function skipSession() {
 
   // Record a skipped session locally so isLogSlotOccupied returns true.
   const skippedSession = {
-    sessionId: crypto.randomUUID(),
+    sessionId: sid,
     week,
     day,
     date: new Date().toISOString().slice(0, 10),
@@ -1857,10 +1867,9 @@ async function skipSession() {
   if (typeof persistLocalState === 'function') persistLocalState();
   if (typeof applyNextIncompleteLogSlot === 'function') applyNextIncompleteLogSlot();
 
-  // Sync to backend asynchronously — fire and forget with a silent retry.
+  // Persist to backend (or offline queue) using the same id.
   if (typeof skipSessionInApi === 'function') {
-    const dayKey = day.toLowerCase();
-    skipSessionInApi(week, day, dayKey, '').catch((e) =>
+    skipSessionInApi(sid, week, day, day.toLowerCase(), '').catch((e) =>
       console.warn('skip sync failed', e),
     );
   }
@@ -1882,12 +1891,17 @@ function undoSkipSession() {
   const sid = state.sessions[idx].sessionId;
   state.sessions.splice(idx, 1);
   if (typeof persistLocalState === 'function') persistLocalState();
-  // Best-effort backend delete (no dedicated PATCH to in_progress yet; we
-  // just delete the skipped record so the slot is open again).
-  if (apiOnline && sid) {
-    apiCall('DELETE', `/sessions/${encodeURIComponent(sid)}`).catch((e) =>
-      console.warn('undo skip delete failed', e),
-    );
+  // Drop any still-queued skip op so it doesn't re-create the skip on next flush.
+  if (typeof dropQueuedSessionOps === 'function' && sid) dropQueuedSessionOps(sid);
+  // Delete the skipped record from the backend so the slot is open again.
+  if (sid) {
+    if (apiOnline) {
+      apiCall('DELETE', `/sessions/${encodeURIComponent(sid)}`).catch((e) =>
+        console.warn('undo skip delete failed', e),
+      );
+    } else if (typeof enqueueSync === 'function') {
+      enqueueSync({ type: 'deleteSession', sessionId: sid });
+    }
   }
   showSaveToast('Skip undone — you can now log this session');
   renderLogPage();

@@ -380,35 +380,54 @@ async function ensureCoachSuggestionsForWeek(week, refresh = false, options = {}
 }
 
 /**
- * Mark a session slot as skipped in DynamoDB.
- * If a cloud session already exists for this slot, PATCHes it; otherwise creates one
- * with status=skipped so the backend records it per-user.
+ * Mark a session slot as skipped in DynamoDB using an explicit sessionId.
+ * Always POSTs (put_item upsert) so the skip persists whether or not a
+ * session already existed for this slot. Falls back to the offline queue.
  */
-async function skipSessionInApi(week, day, dayKey, skipReason = '') {
-  if (!apiOnline) return null;
-  const existing = state.sessions.find(
-    (s) => s.week === week && s.day === day && !s.completed,
-  );
-  const sid = existing?.sessionId || crypto.randomUUID();
-  if (existing?.sessionId) {
-    return apiCall('PATCH', `/sessions/${encodeURIComponent(sid)}`, {
-      status: 'skipped',
-      skipReason,
-    });
+async function skipSessionInApi(sessionId, week, day, dayKey, skipReason = '') {
+  const payload = buildSkipSessionPayload(sessionId, week, day, dayKey, skipReason);
+  if (!apiOnline) {
+    // Persist to the offline queue so the skip survives an app reload and
+    // syncs once we're back online. Without this, hydrateFromApi would
+    // overwrite the local-only skip with backend data on next boot.
+    enqueueSync({ type: 'skipSession', payload });
+    setSyncStatus('local', 'Local only');
+    return null;
   }
-  // No existing session — create a skipped one so it's recorded in Dynamo.
-  return apiCall('POST', '/sessions', {
-    sessionId: sid,
+  try {
+    // POST does put_item which creates OR overwrites, so the skip reliably
+    // lands in DynamoDB whether or not the session existed before.
+    const res = await window._syncSkipOp(payload);
+    setSyncStatus('connected', 'Synced');
+    return res;
+  } catch (e) {
+    console.warn('skip sync failed — queued for retry', e);
+    enqueueSync({ type: 'skipSession', payload });
+    apiOnline = false;
+    setSyncStatus('local', 'Local only');
+    return null;
+  }
+}
+
+/** Build the POST body used to persist a skipped session. */
+function buildSkipSessionPayload(sessionId, week, day, dayKey, skipReason = '') {
+  return {
+    sessionId,
     week,
     day: PROGRAM?.[day]?.label || day,
-    dayKey: dayKey || day.toLowerCase(),
+    dayKey: dayKey || (day || '').toLowerCase(),
     date: new Date().toISOString().slice(0, 10),
     status: 'skipped',
     skipReason,
     totalSets: 0,
     completedSets: 0,
-  });
+  };
 }
+
+// Replayable skip op (also used by the offline sync queue in sync.js).
+window._syncSkipOp = async function (payload) {
+  return apiCall('POST', '/sessions', payload);
+};
 
 async function saveCoachSuggestionOverride(week, slotId, override) {
   // Overrides are persisted separately so future coach runs can preserve athlete edits.

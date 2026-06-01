@@ -81,6 +81,8 @@
           await global._syncDeleteSetOp(op.payload);
         } else if (op.type === 'deleteSession' && op.sessionId) {
           await global.apiCall('DELETE', `/sessions/${encodeURIComponent(op.sessionId)}`);
+        } else if (op.type === 'skipSession' && typeof global._syncSkipOp === 'function') {
+          await global._syncSkipOp(op.payload);
         }
       } catch (e) {
         console.warn('sync queue item failed', op, e);
@@ -107,6 +109,7 @@
     syncQueue = syncQueue.filter((op) => {
       if (op.type === 'deleteSession' && op.sessionId === sessionId) return false;
       if (op.type === 'session' && op.payload?.sessionId === sessionId) return false;
+      if (op.type === 'skipSession' && op.payload?.sessionId === sessionId) return false;
       if (op.type === 'set' && (op.payload?.sessionId === sessionId || sidSet.has(op.payload?.sid))) return false;
       if (op.type === 'deleteSet' && (op.payload?.sessionId === sessionId || sidSet.has(op.payload?.sid))) return false;
       return true;
