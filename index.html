@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>
+// Browser shim: several classic scripts export via `global.X = X` (mirroring
+// the IIFE-wrapped modules that take `global` = window). Define it once here so
+// those export lines actually run instead of throwing "global is not defined".
+window.global = window.global || window;
+</script>
+<script>
 (function(){try{var p=JSON.parse(localStorage.getItem('liftos_prefs_v1')||'{}');var m=p.theme||'auto';var r=m;if(m==='auto'){if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)r='dark';else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)r='light';else{var h=new Date().getHours();r=(h>=19||h<7)?'dark':'light';}}document.documentElement.setAttribute('data-theme',r==='light'?'light':'dark');var pal=p.palette==='forge'?'forge':'ember';document.documentElement.setAttribute('data-palette',pal);}catch(e){document.documentElement.setAttribute('data-theme','dark');document.documentElement.setAttribute('data-palette','ember');}})();
 </script>
 <title>Auxos — Training Hub</title>
